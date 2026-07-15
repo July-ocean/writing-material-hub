@@ -1,0 +1,15 @@
+{
+  "name": "writing-material-hub",
+  "version": "1.0.0",
+  "description": "高考作文素材收集与交流平台（Supabase 持久化 / 本地文件回退，100人以内）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
