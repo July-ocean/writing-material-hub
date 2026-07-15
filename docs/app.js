@@ -34,6 +34,16 @@ function esc(s) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+
+// 来源渲染：以 http(s) 开头则显示为可点击链接，否则原样转义（防止 XSS）
+function srcLink(s) {
+  s = String(s == null ? '' : s);
+  if (/^https?:\/\//i.test(s)) {
+    const safe = esc(s);
+    return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+  }
+  return esc(s);
+}
 // 转义后再把「字面 \n」和真实换行都变成真实换行（配合 CSS 的 white-space: pre-wrap 渲染）
 function escNL(s) {
   return esc(s).replace(/\\r\\n|\\n|\r\n|\n/g, '\n');
@@ -103,7 +113,7 @@ function reviewHTML(m) {
       </div>
       <div class="mat-row-sub">${esc(m.intro)}</div>
       <div class="mat-row-content">${escNL(m.content)}</div>
-      <div class="mat-row-src">来源：${esc(m.source)} · ${esc(m.authorName)} · ${fmtDate(m.createdAt)}</div>
+      <div class="mat-row-src">来源：${srcLink(m.source)} · ${esc(m.authorName)} · ${fmtDate(m.createdAt)}</div>
     </div>
     <div class="mat-row-side">
       <button data-act="approve">通过</button>
@@ -235,7 +245,7 @@ async function openDetail(id) {
         <h2>${esc(m.title)}</h2>
         ${m.authorRole === 'teacher' ? '<span class="badge teacher">教师发布</span>' : ''}
       </div>
-      <div class="detail-meta">✍️ ${esc(m.authorName)} · 📅 ${fmtDate(m.createdAt)} · 来源：${esc(m.source)}</div>
+      <div class="detail-meta">✍️ ${esc(m.authorName)} · 📅 ${fmtDate(m.createdAt)} · 来源：${srcLink(m.source)}</div>
       <div class="detail-content">${escNL(m.content)}</div>
       <div class="detail-actions">
         <button class="act like ${m.liked ? 'on' : ''}" data-dact="like">❤️ <span>${m.likesCount}</span></button>
@@ -276,7 +286,7 @@ function openPublish() {
       <label>标题 *<input name="title" maxlength="60" required></label>
       <label>简介 *<textarea name="intro" maxlength="120" rows="2" required></textarea></label>
       <label>内容 *<textarea name="content" rows="6" required></textarea></label>
-      <label>来源 *<input name="source" maxlength="60" required></label>
+      <label>来源（具体网址）*<input name="source" placeholder="请填写素材来源的具体网址，以 http 开头" maxlength="200" required></label>
       <button type="submit">${state.user.role === 'teacher' ? '发布' : '提交审核'}</button>
     </form>
   </div></div>`;
