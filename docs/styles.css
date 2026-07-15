@@ -123,7 +123,11 @@ body {
   background: #fff; color: var(--muted); cursor: pointer; font-weight: 400;
 }
 .tag-opt:hover { border-color: var(--primary); color: var(--primary); }
-.tag-opt.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tag-opt.on { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+.tag-opt.on::before { content: "✓ "; }
+.tag-selected { margin: 4px 0 2px; font-size: 13px; line-height: 1.9; }
+.tag-selected .muted { color: var(--muted); }
+.tag.on { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ---------- 卡片网格 ---------- */
 .card-grid {

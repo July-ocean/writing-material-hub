@@ -328,7 +328,6 @@ function openEditForm(mat) {
   const editing = !!mat;
   const curTags = editing ? (mat.tags || []) : [];
   const customOnly = editing ? curTags.filter(t => !PRESET_TAGS.includes(t)) : [];
-  const presetOn = t => (editing && curTags.includes(t)) ? ' on' : '';
   const titleVal = editing ? esc(mat.title) : '';
   const introVal = editing ? esc(mat.intro) : '';
   const contentVal = editing ? esc(mat.content) : '';
@@ -348,20 +347,35 @@ function openEditForm(mat) {
       <label>内容 *<textarea name="content" rows="6" required>${contentVal}</textarea></label>
       <label>来源（具体网址）*<input name="source" placeholder="请填写素材来源的具体网址，以 http 开头" maxlength="200" required value="${sourceVal}"></label>
       <label>标签（点击选择，方便他人检索）
-        <div class="tag-pick">${PRESET_TAGS.map(t =>
-          `<button type="button" class="tag-opt${presetOn(t)}" data-tag="${esc(t)}"># ${esc(t)}</button>`).join('')}</div>
+        <div class="tag-pick" id="tag-pick">${PRESET_TAGS.map(t =>
+          `<button type="button" class="tag-opt" data-tag="${esc(t)}"># ${esc(t)}</button>`).join('')}</div>
         <input name="customTags" placeholder="其它标签可自定义，用逗号分隔（可选）" maxlength="60" value="${customVal}">
+        <div class="tag-selected" id="tag-selected"></div>
       </label>
       <button type="submit">${editing ? '保存修改' : (state.user.role === 'teacher' ? '发布' : '提交审核')}</button>
     </form>
   </div></div>`;
   showModal(html);
-  // 标签选中态切换
-  modalRoot.querySelectorAll('.tag-opt').forEach(b =>
-    b.addEventListener('click', () => b.classList.toggle('on')));
-  document.getElementById('publish-form').addEventListener('submit', async e => {
+  const f = document.getElementById('publish-form');
+  // 标签选中态：编辑时按已存标签显式预选；点击切换；实时显示已选
+  const tagPick = document.getElementById('tag-pick');
+  const tagSelected = document.getElementById('tag-selected');
+  function syncTags() {
+    const on = [...tagPick.querySelectorAll('.tag-opt.on')].map(b => b.dataset.tag);
+    const custom = (f.customTags.value || '').split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+    const all = [...new Set([...on, ...custom])].slice(0, 8);
+    tagSelected.innerHTML = all.length
+      ? '已选：' + all.map(t => `<span class="tag on"># ${esc(t)}</span>`).join('')
+      : '<span class="muted">尚未选择任何标签</span>';
+  }
+  tagPick.querySelectorAll('.tag-opt').forEach(b => {
+    if (editing && curTags.includes(b.dataset.tag)) b.classList.add('on');
+    b.addEventListener('click', () => { b.classList.toggle('on'); syncTags(); });
+  });
+  f.customTags.addEventListener('input', syncTags);
+  syncTags();
+  f.addEventListener('submit', async e => {
     e.preventDefault();
-    const f = e.target;
     const editId = f.editId.value.trim();
     const now = Date.now();
     // 汇总标签：选中的预设 + 自定义（逗号/顿号/空格分隔），去重、去空、最多 8 个
