@@ -78,6 +78,7 @@ function mapMaterial(m) {
   return Object.assign(m, {
     authorName: m.author_name,
     authorRole: m.author_role,
+    authorId: m.author_id,
     createdAt: m.created_at,
     likesCount: m.likes_count,
     favoritesCount: m.favorites_count,
@@ -285,6 +286,7 @@ async function openDetail(id) {
       <div class="detail-actions">
         <button class="act like ${m.liked ? 'on' : ''}" data-dact="like">❤️ <span>${m.likesCount}</span></button>
         <button class="act fav ${m.favorited ? 'on' : ''}" data-dact="fav">⭐ <span>${m.favoritesCount}</span></button>
+        ${m.authorId === uid ? '<button class="act edit" data-dact="edit">✏️ 编辑</button>' : ''}
       </div>
       <h4>评论 (${m.commentsCount})</h4>
       <div class="comments">${cs.map(c => `<div class="comment"><b>${esc(c.user_name)}</b><span class="ctime">${fmtDate(c.created_at)}</span><p>${esc(c.content)}</p></div>`).join('') || '<p class="empty">暂无评论</p>'}</div>
@@ -307,27 +309,50 @@ async function openDetail(id) {
     openDetail(id);
   });
   modalRoot.querySelectorAll('[data-dact]').forEach(b => b.addEventListener('click', async () => {
-    if (b.dataset.dact === 'like') await toggleLike(id); else await toggleFav(id);
+    const act = b.dataset.dact;
+    if (act === 'like') await toggleLike(id);
+    else if (act === 'fav') await toggleFav(id);
+    else if (act === 'edit') { openEdit(m); return; }
     openDetail(id);
     if (state.view === 'home') loadHome();
   }));
 }
 function openPublish() {
+  openEditForm(null);
+}
+function openEdit(mat) {
+  openEditForm(mat);
+}
+// 发布 / 编辑共用同一个表单：mat 为 null 是发布，否则是编辑（预填并 UPDATE）
+function openEditForm(mat) {
+  const editing = !!mat;
+  const curTags = editing ? (mat.tags || []) : [];
+  const customOnly = editing ? curTags.filter(t => !PRESET_TAGS.includes(t)) : [];
+  const presetOn = t => (editing && curTags.includes(t)) ? ' on' : '';
+  const titleVal = editing ? esc(mat.title) : '';
+  const introVal = editing ? esc(mat.intro) : '';
+  const contentVal = editing ? esc(mat.content) : '';
+  const sourceVal = editing ? esc(mat.source) : '';
+  const customVal = editing ? esc(customOnly.join('，')) : '';
+
   const html = `<div class="modal-back" data-close="1"><div class="modal">
     <button class="modal-x" data-close="1">×</button>
-    <h2>发布作文素材</h2>
-    <p class="sub">${state.user.role === 'teacher' ? '教师发布将直接展示在主页' : '提交后由教师审核，通过后将展示在网站主页'}</p>
+    <h2>${editing ? '编辑作文素材' : '发布作文素材'}</h2>
+    <p class="sub">${editing
+      ? '修改后将保留原作者与当前状态'
+      : (state.user.role === 'teacher' ? '教师发布将直接展示在主页' : '提交后由教师审核，通过后将展示在网站主页')}</p>
     <form id="publish-form" class="form">
-      <label>标题 *<input name="title" maxlength="60" required></label>
-      <label>简介 *<textarea name="intro" maxlength="120" rows="2" required></textarea></label>
-      <label>内容 *<textarea name="content" rows="6" required></textarea></label>
-      <label>来源（具体网址）*<input name="source" placeholder="请填写素材来源的具体网址，以 http 开头" maxlength="200" required></label>
+      <input type="hidden" name="editId" value="${editing ? esc(mat.id) : ''}">
+      <label>标题 *<input name="title" maxlength="60" required value="${titleVal}"></label>
+      <label>简介 *<textarea name="intro" maxlength="120" rows="2" required>${introVal}</textarea></label>
+      <label>内容 *<textarea name="content" rows="6" required>${contentVal}</textarea></label>
+      <label>来源（具体网址）*<input name="source" placeholder="请填写素材来源的具体网址，以 http 开头" maxlength="200" required value="${sourceVal}"></label>
       <label>标签（点击选择，方便他人检索）
         <div class="tag-pick">${PRESET_TAGS.map(t =>
-          `<button type="button" class="tag-opt" data-tag="${esc(t)}"># ${esc(t)}</button>`).join('')}</div>
-        <input name="customTags" placeholder="其它标签可自定义，用逗号分隔（可选）" maxlength="60">
+          `<button type="button" class="tag-opt${presetOn(t)}" data-tag="${esc(t)}"># ${esc(t)}</button>`).join('')}</div>
+        <input name="customTags" placeholder="其它标签可自定义，用逗号分隔（可选）" maxlength="60" value="${customVal}">
       </label>
-      <button type="submit">${state.user.role === 'teacher' ? '发布' : '提交审核'}</button>
+      <button type="submit">${editing ? '保存修改' : (state.user.role === 'teacher' ? '发布' : '提交审核')}</button>
     </form>
   </div></div>`;
   showModal(html);
@@ -337,30 +362,46 @@ function openPublish() {
   document.getElementById('publish-form').addEventListener('submit', async e => {
     e.preventDefault();
     const f = e.target;
-    const isTeacher = state.user.role === 'teacher';
+    const editId = f.editId.value.trim();
     const now = Date.now();
     // 汇总标签：选中的预设 + 自定义（逗号/顿号/空格分隔），去重、去空、最多 8 个
     const picked = [...f.querySelectorAll('.tag-opt.on')].map(b => b.dataset.tag);
     const custom = (f.customTags.value || '').split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
     const tags = [...new Set([...picked, ...custom])].slice(0, 8);
-    const { error } = await sb.from('materials').insert({
-      title: f.title.value.trim(),
-      intro: f.intro.value.trim(),
-      content: f.content.value.trim(),
-      source: f.source.value.trim(),
-      tags,
-      author_id: state.user.id,
-      author_name: state.user.displayName,
-      author_role: state.user.role,
-      status: isTeacher ? 'approved' : 'pending',
-      created_at: now,
-      approved_at: isTeacher ? now : null,
-    });
+    let error;
+    if (editId) {
+      // 编辑：保留原作者与状态，仅更新内容字段
+      const { error: e1 } = await sb.from('materials').update({
+        title: f.title.value.trim(),
+        intro: f.intro.value.trim(),
+        content: f.content.value.trim(),
+        source: f.source.value.trim(),
+        tags,
+      }).eq('id', editId);
+      error = e1;
+    } else {
+      // 发布
+      const isTeacher = state.user.role === 'teacher';
+      const { error: e2 } = await sb.from('materials').insert({
+        title: f.title.value.trim(),
+        intro: f.intro.value.trim(),
+        content: f.content.value.trim(),
+        source: f.source.value.trim(),
+        tags,
+        author_id: state.user.id,
+        author_name: state.user.displayName,
+        author_role: state.user.role,
+        status: isTeacher ? 'approved' : 'pending',
+        created_at: now,
+        approved_at: isTeacher ? now : null,
+      });
+      error = e2;
+    }
     if (error) { toast(error.message); return; }
     modalRoot.innerHTML = '';
-    toast(isTeacher ? '已发布' : '已提交，等待教师审核');
-    if (state.view === 'my') loadMy();
-    else if (state.view === 'home' && isTeacher) loadHome();
+    toast(editId ? '已保存修改' : (state.user.role === 'teacher' ? '已发布' : '已提交，等待教师审核'));
+    if (state.view === 'home') loadHome();
+    else if (state.view === 'my') loadMy();
   });
 }
 async function approve(id) {

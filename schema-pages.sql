@@ -146,6 +146,11 @@ create policy materials_insert on materials for insert to authenticated
 drop policy if exists materials_update_teacher on materials;
 create policy materials_update_teacher on materials for update to authenticated
   using (is_teacher()) with check (is_teacher());
+-- 作者可编辑自己发布的素材（不能改 status/作者：编辑表单不含 status，UPDATE 时该列保持不变；author_id 锁定防止转嫁他人）
+drop policy if exists materials_update_self on materials;
+create policy materials_update_self on materials for update to authenticated
+  using (author_id = auth.uid())
+  with check (author_id = auth.uid());
 drop policy if exists materials_delete_teacher on materials;
 create policy materials_delete_teacher on materials for delete to authenticated
   using (is_teacher());

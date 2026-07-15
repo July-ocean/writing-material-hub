@@ -151,6 +151,8 @@ body {
 .act:hover { border-color: var(--primary); color: var(--primary); }
 .act.like.on { color: var(--no); border-color: var(--no); background: #fff0f0; }
 .act.fav.on { color: #f08c00; border-color: #f08c00; background: #fff7e6; }
+.act.edit { color: var(--primary); }
+.act.edit:hover { border-color: var(--primary); background: #eef1fe; }
 
 /* ---------- 徽标 ---------- */
 .badge {
