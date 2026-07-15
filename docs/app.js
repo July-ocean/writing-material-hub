@@ -34,6 +34,10 @@ function esc(s) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+// 转义后再把「字面 \n」和真实换行都变成真实换行（配合 CSS 的 white-space: pre-wrap 渲染）
+function escNL(s) {
+  return esc(s).replace(/\\r\\n|\\n|\r\n|\n/g, '\n');
+}
 function fmtDate(ts) {
   const d = new Date(Number(ts));
   const p = n => String(n).padStart(2, '0');
@@ -98,7 +102,7 @@ function reviewHTML(m) {
         <span class="badge ${m.authorRole === 'teacher' ? 'teacher' : ''}">${m.authorRole === 'teacher' ? '教师' : '学生'}</span>
       </div>
       <div class="mat-row-sub">${esc(m.intro)}</div>
-      <div class="mat-row-content">${esc(m.content)}</div>
+      <div class="mat-row-content">${escNL(m.content)}</div>
       <div class="mat-row-src">来源：${esc(m.source)} · ${esc(m.authorName)} · ${fmtDate(m.createdAt)}</div>
     </div>
     <div class="mat-row-side">
@@ -232,7 +236,7 @@ async function openDetail(id) {
         ${m.authorRole === 'teacher' ? '<span class="badge teacher">教师发布</span>' : ''}
       </div>
       <div class="detail-meta">✍️ ${esc(m.authorName)} · 📅 ${fmtDate(m.createdAt)} · 来源：${esc(m.source)}</div>
-      <div class="detail-content">${esc(m.content)}</div>
+      <div class="detail-content">${escNL(m.content)}</div>
       <div class="detail-actions">
         <button class="act like ${m.liked ? 'on' : ''}" data-dact="like">❤️ <span>${m.likesCount}</span></button>
         <button class="act fav ${m.favorited ? 'on' : ''}" data-dact="fav">⭐ <span>${m.favoritesCount}</span></button>
