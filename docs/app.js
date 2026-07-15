@@ -25,8 +25,15 @@ function initClient() {
 function toEmail(username) { return String(username).trim().toLowerCase() + EMAIL_DOMAIN; }
 
 /* ============================ 状态 ============================ */
-const state = { user: null, view: 'home' };
+const state = { user: null, view: 'home', homeMats: [], homeKw: '' };
 const modalRoot = document.getElementById('modal-root');
+
+// 发布时可选的常用作文主题标签
+const PRESET_TAGS = [
+  '文化自信', '传统文化', '科技创新', '青年担当', '生态文明', '家国情怀',
+  '奋斗拼搏', '理想信念', '道德修养', '人生哲理', '亲情友情', '教育成长',
+  '时代精神', '责任奉献',
+];
 
 /* ============================ 工具 ============================ */
 function esc(s) {
@@ -47,6 +54,12 @@ function srcLink(s) {
 // 转义后再把「字面 \n」和真实换行都变成真实换行（配合 CSS 的 white-space: pre-wrap 渲染）
 function escNL(s) {
   return esc(s).replace(/\\r\\n|\\n|\r\n|\n/g, '\n');
+}
+// 渲染标签（clickable=true 时点击可在广场按该标签筛选）
+function tagsHTML(tags, cls) {
+  if (!tags || !tags.length) return '';
+  return `<div class="${cls || 'card-tags'}">${tags.map(t =>
+    `<span class="tag" data-tag="${esc(t)}"># ${esc(t)}</span>`).join('')}</div>`;
 }
 function fmtDate(ts) {
   const d = new Date(Number(ts));
@@ -69,6 +82,7 @@ function mapMaterial(m) {
     likesCount: m.likes_count,
     favoritesCount: m.favorites_count,
     commentsCount: m.comments_count,
+    tags: Array.isArray(m.tags) ? m.tags : (m.tags ? [m.tags] : []),
   });
 }
 
@@ -79,6 +93,7 @@ function cardHTML(m) {
     <div class="card-top">${teacherBadge}</div>
     <h3 class="card-title">${esc(m.title)}</h3>
     <p class="card-intro">${esc(m.intro)}</p>
+    ${tagsHTML(m.tags)}
     <div class="card-meta">
       <span>✍️ ${esc(m.authorName)}</span>
       <span>📅 ${fmtDate(m.createdAt)}</span>
@@ -112,6 +127,7 @@ function reviewHTML(m) {
         <span class="badge ${m.authorRole === 'teacher' ? 'teacher' : ''}">${m.authorRole === 'teacher' ? '教师' : '学生'}</span>
       </div>
       <div class="mat-row-sub">${esc(m.intro)}</div>
+      ${tagsHTML(m.tags)}
       <div class="mat-row-content">${escNL(m.content)}</div>
       <div class="mat-row-src">来源：${srcLink(m.source)} · ${esc(m.authorName)} · ${fmtDate(m.createdAt)}</div>
     </div>
@@ -156,16 +172,34 @@ async function markMine(mats) {
 
 /* ============================ 数据加载 ============================ */
 async function loadHome() {
-  const box = document.getElementById('cards');
   const { data, error } = await sb.from('materials').select('*')
     .eq('status', 'approved')
     .order('likes_count', { ascending: false })
     .order('created_at', { ascending: false });
   if (error) { toast(error.message); return; }
   await markMine(data);
-  box.innerHTML = data.length
-    ? data.map(cardHTML).join('')
-    : '<p class="empty">还没有已通过的素材，快去发布并等待教师审核吧～</p>';
+  state.homeMats = data || [];
+  renderHome();
+}
+// 按关键词（标题/简介/正文/标签/作者）本地过滤后渲染广场
+function renderHome() {
+  const box = document.getElementById('cards');
+  const kw = (state.homeKw || '').trim().toLowerCase();
+  let list = state.homeMats;
+  if (kw) {
+    list = list.filter(m => {
+      const hay = [m.title, m.intro, m.content, m.authorName, ...(m.tags || [])]
+        .join(' ').toLowerCase();
+      return hay.includes(kw);
+    });
+  }
+  if (!list.length) {
+    box.innerHTML = kw
+      ? `<p class="empty">没有找到包含“${esc(state.homeKw)}”的素材，换个关键词试试～</p>`
+      : '<p class="empty">还没有已通过的素材，快去发布并等待教师审核吧～</p>';
+    return;
+  }
+  box.innerHTML = list.map(cardHTML).join('');
 }
 async function loadMy() {
   const uid = state.user.id;
@@ -246,6 +280,7 @@ async function openDetail(id) {
         ${m.authorRole === 'teacher' ? '<span class="badge teacher">教师发布</span>' : ''}
       </div>
       <div class="detail-meta">✍️ ${esc(m.authorName)} · 📅 ${fmtDate(m.createdAt)} · 来源：${srcLink(m.source)}</div>
+      ${tagsHTML(m.tags)}
       <div class="detail-content">${escNL(m.content)}</div>
       <div class="detail-actions">
         <button class="act like ${m.liked ? 'on' : ''}" data-dact="like">❤️ <span>${m.likesCount}</span></button>
@@ -287,20 +322,33 @@ function openPublish() {
       <label>简介 *<textarea name="intro" maxlength="120" rows="2" required></textarea></label>
       <label>内容 *<textarea name="content" rows="6" required></textarea></label>
       <label>来源（具体网址）*<input name="source" placeholder="请填写素材来源的具体网址，以 http 开头" maxlength="200" required></label>
+      <label>标签（点击选择，方便他人检索）
+        <div class="tag-pick">${PRESET_TAGS.map(t =>
+          `<button type="button" class="tag-opt" data-tag="${esc(t)}"># ${esc(t)}</button>`).join('')}</div>
+        <input name="customTags" placeholder="其它标签可自定义，用逗号分隔（可选）" maxlength="60">
+      </label>
       <button type="submit">${state.user.role === 'teacher' ? '发布' : '提交审核'}</button>
     </form>
   </div></div>`;
   showModal(html);
+  // 标签选中态切换
+  modalRoot.querySelectorAll('.tag-opt').forEach(b =>
+    b.addEventListener('click', () => b.classList.toggle('on')));
   document.getElementById('publish-form').addEventListener('submit', async e => {
     e.preventDefault();
     const f = e.target;
     const isTeacher = state.user.role === 'teacher';
     const now = Date.now();
+    // 汇总标签：选中的预设 + 自定义（逗号/顿号/空格分隔），去重、去空、最多 8 个
+    const picked = [...f.querySelectorAll('.tag-opt.on')].map(b => b.dataset.tag);
+    const custom = (f.customTags.value || '').split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+    const tags = [...new Set([...picked, ...custom])].slice(0, 8);
     const { error } = await sb.from('materials').insert({
       title: f.title.value.trim(),
       intro: f.intro.value.trim(),
       content: f.content.value.trim(),
       source: f.source.value.trim(),
+      tags,
       author_id: state.user.id,
       author_name: state.user.displayName,
       author_role: state.user.role,
@@ -336,6 +384,19 @@ function showModal(html) {
 /* ============================ 全局事件 ============================ */
 document.addEventListener('click', e => {
   if (e.target.closest('#modal-root')) return;
+
+  // 点击卡片上的标签 → 在广场按该标签检索（不触发打开详情）
+  const tagEl = e.target.closest('.tag');
+  if (tagEl && tagEl.dataset.tag) {
+    const val = tagEl.dataset.tag;
+    if (state.view !== 'home') { state.view = 'home'; showView(); }
+    const inp = document.getElementById('home-search');
+    if (inp) inp.value = val;
+    state.homeKw = val;
+    if (!state.homeMats.length) loadHome(); else renderHome();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
 
   const tab = e.target.closest('.tab');
   if (tab) {
@@ -436,6 +497,12 @@ document.getElementById('register-form').addEventListener('submit', async e => {
   }
   toast('注册成功，已自动登录');
   if (await loadProfile()) afterLogin();
+});
+
+// 广场搜索栏：实时过滤
+document.getElementById('home-search').addEventListener('input', e => {
+  state.homeKw = e.target.value;
+  renderHome();
 });
 
 document.getElementById('btn-publish').addEventListener('click', openPublish);
