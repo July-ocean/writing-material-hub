@@ -6,6 +6,6 @@
 // 说明：anon 公钥可以公开放在前端，数据安全由数据库的 RLS 策略保证。
 // ============================================================
 window.APP_CONFIG = {
-  SUPABASE_URL: "在这里填入你的_Project_URL",
-  SUPABASE_ANON_KEY: "在这里填入你的_anon_public_公钥"
+  SUPABASE_URL: "https://upcknogedaijbtrawsri.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwY2tub2dlZGFpamJ0cmF3c3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDkyODEsImV4cCI6MjA5OTY4NTI4MX0.KLkDWRMd6eC_SXy0ngQ8Ilx4vstjbGK-UJRTSjKwtOc"
 };
