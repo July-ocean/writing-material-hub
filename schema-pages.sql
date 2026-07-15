@@ -4,6 +4,14 @@
 -- 架构：纯前端(GitHub Pages) 直连 Supabase，安全完全由 RLS 行级策略保证。
 -- ============================================================
 
+-- 若之前跑过「Node 后端版」的 schema.sql，会留下 users/materials 等旧表。
+-- 先清空它们（含外键），再用下面的语句重建 GitHub Pages 版所需结构，避免冲突。
+drop table if exists comments cascade;
+drop table if exists favorites cascade;
+drop table if exists likes cascade;
+drop table if exists materials cascade;
+drop table if exists users cascade;
+
 create extension if not exists "pgcrypto";
 
 -- ---------------- 表结构 ----------------
