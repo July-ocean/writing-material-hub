@@ -83,6 +83,7 @@ function mapMaterial(m) {
     likesCount: m.likes_count,
     favoritesCount: m.favorites_count,
     commentsCount: m.comments_count,
+    teacherLikesCount: m.teacher_likes_count || 0,
     tags: Array.isArray(m.tags) ? m.tags : (m.tags ? [m.tags] : []),
   });
 }
@@ -90,8 +91,9 @@ function mapMaterial(m) {
 /* ============================ 渲染片段 ============================ */
 function cardHTML(m) {
   const teacherBadge = m.authorRole === 'teacher' ? '<span class="badge teacher">教师发布</span>' : '';
+  const teacherLikeBadge = m.teacherLikesCount > 0 ? '<span class="badge teacher-like">👍 老师赞了</span>' : '';
   return `<article class="card" data-id="${m.id}">
-    <div class="card-top">${teacherBadge}</div>
+    <div class="card-top">${teacherBadge}${teacherLikeBadge}</div>
     <h3 class="card-title">${esc(m.title)}</h3>
     <p class="card-intro">${esc(m.intro)}</p>
     ${tagsHTML(m.tags)}
@@ -279,6 +281,7 @@ async function openDetail(id) {
       <div class="detail-head">
         <h2>${esc(m.title)}</h2>
         ${m.authorRole === 'teacher' ? '<span class="badge teacher">教师发布</span>' : ''}
+        ${m.teacherLikesCount > 0 ? '<span class="badge teacher-like">👍 老师赞了</span>' : ''}
       </div>
       <div class="detail-meta">✍️ ${esc(m.authorName)} · 📅 ${fmtDate(m.createdAt)} · 来源：${srcLink(m.source)}</div>
       ${tagsHTML(m.tags)}
@@ -288,7 +291,7 @@ async function openDetail(id) {
         <button class="act fav ${m.favorited ? 'on' : ''}" data-dact="fav">⭐ <span>${m.favoritesCount}</span></button>
         ${m.authorId === uid ? '<button class="act edit" data-dact="edit">✏️ 编辑</button>' : ''}
       </div>
-      <h4>评论 (${m.commentsCount})</h4>
+      <h4>评论 (${cs.length})</h4>
       <div class="comments">${cs.map(c => `<div class="comment"><b>${esc(c.user_name)}</b><span class="ctime">${fmtDate(c.created_at)}</span><p>${esc(c.content)}</p></div>`).join('') || '<p class="empty">暂无评论</p>'}</div>
       <form id="comment-form">
         <input name="content" placeholder="写下你的评论…" maxlength="500" autocomplete="off">
