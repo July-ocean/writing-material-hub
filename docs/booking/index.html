@@ -339,7 +339,6 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
 var SUPABASE_URL = "https://upcknogedaijbtrawsri.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwY2tub2dlZGFpamJ0cmF3c3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDkyODEsImV4cCI6MjA5OTY4NTI4MX0.KLkDWRMd6eC_SXy0ngQ8Ilx4vstjbGK-UJRTSjKwtOc";
 
-var OPEN_FROM = "2026-09-07";   // 开放起始日；早于该日期时默认停在这一天所在周
 var DAY_START = 8;
 var DAY_END   = 22;             // 最后时段 21:00-22:00
 var WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周日"];
@@ -417,13 +416,8 @@ var selected = {};          // 多选的时段 id -> {day, hour}，仅当前设�
 
 function initWeek(){
   var q = new URLSearchParams(location.search).get("week");
-  var base;
-  if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) base = parseYmd(q);
-  else {
-    var today = new Date();
-    var open = parseYmd(OPEN_FROM);
-    base = today < open ? open : today;
-  }
+  // 默认当前周；链接里带 ?week=YYYY-MM-DD 才跳到指定周
+  var base = (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) ? parseYmd(q) : new Date();
   weekStart = mondayOf(base);
   // 上限：再往后翻没意义（下下周及以后还不能约），钳到下周
   if (ymd(weekStart) > ymd(maxWeekStart())) weekStart = maxWeekStart();

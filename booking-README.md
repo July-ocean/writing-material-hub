@@ -74,10 +74,8 @@ git push origin master
 
 **https://july-ocean.github.io/writing-material-hub/booking/**
 
-页面默认停在 **9/7（周一）– 9/13（周日）** 那一周（代码里 `OPEN_FROM` 控制），
-之后会随日期自动切到当前周。
-
-发群里建议用带参数的固定链接，锁死那一周：
+页面默认显示**当前周**，每周一自动翻到新的一周，长期有效。
+想跳到指定周，在地址后加参数（只适合临时查看，不要发群里）：
 
 ```
 https://july-ocean.github.io/writing-material-hub/booking/?week=2026-09-07
@@ -204,12 +202,11 @@ delete from public.prep_users where username = 'liming';
 truncate public.prep_bookings;
 ```
 
-### 改开放起始日 / 时段范围
+### 改时段范围
 
 编辑 `docs/booking/index.html` 顶部的配置区：
 
 ```js
-var OPEN_FROM = "2026-09-07";   // 默认定位到这一天所在周
 var DAY_START = 8;              // 08:00 开始
 var DAY_END   = 22;             // 22:00 结束（最后时段 21:00-22:00）
 ```
