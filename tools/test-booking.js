@@ -262,6 +262,25 @@ function ymdLocal(d) {
   documentStub.getElementById("selClear").onclick();
   eq(Object.keys(ctx.selected).length, 0, "「清空」按钮生效");
 
+  // 回归：点真实格子的 onclick（曾踩 var 闭包坑——hr 提升到 render() 作用域，
+  // 循环结束后恒为 22，导致点任何格子都选中 22:00）
+  const gridEl = documentStub.getElementById("grid");
+  const freeCells = gridEl.children.filter((c) =>
+    c.dataset && c.dataset.id && /(^|\s)free(\s|$)/.test(c.className));
+  ok(freeCells.length > 0, "网格里找到空闲格子（共 " + freeCells.length + " 个）");
+  const futureCell = freeCells.find((c) => {
+    const parts = c.dataset.id.split("#");
+    const end = new Date(+parts[0].slice(0, 4), +parts[0].slice(5, 7) - 1, +parts[0].slice(8, 10));
+    end.setHours(parseInt(parts[1], 10) + 1, 0, 0, 0);
+    return end.getTime() > Date.now() && !ctx.demoData[c.dataset.id];
+  });
+  ok(!!futureCell, "找到未来空闲格子做真实点击");
+  futureCell.onclick();
+  eq(Object.keys(ctx.selected)[0], futureCell.dataset.id,
+     "真实点击格子 → 选中的就是格子自己的时段（" + futureCell.dataset.id + "）");
+  ctx.selected = {};
+  ctx.render();
+
   /* ---------- 批量预约端到端（showBatch → mOk） ---------- */
   console.log("\n[showBatch 端到端]");
   const final2 = freeFutureSlots(2, "prep");

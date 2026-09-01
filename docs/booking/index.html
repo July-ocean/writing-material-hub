@@ -845,7 +845,10 @@ function render(){
         }
       }
 
-      cell.onclick = function(){ onCellClick(s, hr); };
+      // var 会提升：hr 是 render() 级变量，循环结束后 = DAY_END。
+      // 必须按格子各存一份，否则所有格子点进去都是 22:00
+      var clickDay = s, clickHour = hr;
+      cell.onclick = function(){ onCellClick(clickDay, clickHour); };
       grid.appendChild(cell);
     });
   }
@@ -1019,7 +1022,7 @@ function showBatch(){
 
   modal.innerHTML =
     '<h3>预约 ' + ids.length + ' 个时段 · ' + escapeHtml(deviceName(currentDevice)) + '</h3>' +
-    '<div class="when">水相和备注将应用到全部所选时段；要么全部约上，要么一个都不约</div>' +
+    '<div class="when">水相和备注将应用到全部所选时段</div>' +
     '<div class="slist">' + listHtml + '</div>' +
     '<div class="fixed"><span>' + escapeHtml(session.display_name) + '</span><span>预约人（本人）</span></div>' +
     '<p class="fl">水相（选填）</p>' +
