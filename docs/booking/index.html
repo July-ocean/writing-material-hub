@@ -166,6 +166,36 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
 .cell.hid{display:none}
 .cell.pending{opacity:.55}
 
+/* ---------- 多选 ---------- */
+.cell.sel{box-shadow:inset 0 0 0 2px var(--brand);background:#eff6ff !important}
+.cell.sel::after{
+  content:"✓";position:absolute;top:2px;right:4px;color:var(--brand);
+  font-size:13px;font-weight:700;
+}
+.cell.free.sel:hover{background:#e3eeff !important}
+
+.selbar{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+  display:none;align-items:center;gap:9px;z-index:40;
+  background:#1f2430;color:#fff;border-radius:30px;padding:9px 12px 9px 18px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px;white-space:nowrap;
+}
+.selbar.on{display:flex}
+.selbar b{color:#93c5fd;font-size:15px}
+.selbar .sact{border:none;border-radius:18px;padding:7px 14px;font-size:13px;font-family:inherit;cursor:pointer}
+.selbar .sact.primary{background:var(--brand);color:#fff}
+.selbar .sact.ghost{background:rgba(255,255,255,.14);color:#dbe2ee}
+.selbar .sact:active{transform:scale(.96)}
+
+/* 批量弹窗的时段清单 */
+.slist{
+  max-height:150px;overflow-y:auto;border:1px solid var(--line);border-radius:9px;
+  margin-bottom:12px;background:#fbfcfe;
+}
+.slist .si{padding:8px 11px;font-size:13.5px;border-bottom:1px solid #f0f2f7;display:flex;justify-content:space-between;gap:10px}
+.slist .si:last-child{border-bottom:none}
+.slist .si .sh{color:var(--muted);font-variant-numeric:tabular-nums}
+
 /* ---------- footer ---------- */
 .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:12px 2px 0}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
@@ -287,6 +317,12 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
   <div class="tip" id="tip"></div>
 </div>
 
+<div class="selbar" id="selBar">
+  <span>已选 <b id="selNum">0</b> 段</span>
+  <button class="sact ghost" id="selClear">清空</button>
+  <button class="sact primary" id="selGo">确认预约</button>
+</div>
+
 <div class="mask" id="mask"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
@@ -371,6 +407,7 @@ var myBookings = [];
 var session = null;      // {token, user_id, username, display_name}
 var loading = false;
 var dbReady = false;
+var selected = {};          // 多选的时段 id -> {day, hour}，仅当前设备、当前周
 
 function initWeek(){
   var q = new URLSearchParams(location.search).get("week");
@@ -607,6 +644,7 @@ function renderDevices(){
     b.onclick = function(){
       if (d.key === currentDevice) return;
       currentDevice = d.key;
+      selected = {};   // 选中只针对当前设备，切换即作废
       try { localStorage.setItem(LS_DEVICE, d.key); } catch (_) {}
       renderDevices();
       load();
@@ -648,7 +686,7 @@ function renderTip(){
     "<b>使用说明</b><br>" +
     "1. 先<b>注册账号</b>（用户名 + 姓名 + 密码），登录后才能预约。<br>" +
     "2. 上方切换<b>制备 / 半制备</b>：两台设备各自独立预约。<br>" +
-    "3. 点空格子预约，可勾选<b>水相</b>（0.05%盐酸 / 0.1%甲酸 / 其它自填），另可补充备注。<br>" +
+    "3. 点空格子<b>可多选</b>（一次最多 8 段，再点一次取消），点底部「确认预约」后统一填<b>水相</b>（0.05%盐酸 / 0.1%甲酸 / 其它自填）和备注，一次约上全部；若中途有人被抢，整批不约、可刷新后重选。<br>" +
     "4. 已被约的格子和过去时段不可约。<br>" +
     "5. <b>取消</b>：可以在上方「我的预约」列表点「取消」，或点网格中自己的格子。";
 }
@@ -711,6 +749,12 @@ function render(){
   for (var i = 0; i < 7; i++) days.push(addDays(weekStart, i));
   var narrow = isNarrow();
 
+  // 清理：选中后已被别人约走的时段（或已过期）
+  Object.keys(selected).forEach(function(id){
+    var s = selected[id];
+    if (bookings[id] || isPast(s.day, s.hour)) delete selected[id];
+  });
+
   document.getElementById("range").textContent =
     (weekStart.getMonth()+1) + "月" + weekStart.getDate() + "日 – " +
     (days[6].getMonth()+1) + "月" + days[6].getDate() + "日";
@@ -767,6 +811,8 @@ function render(){
       else if (b) cls += (isMine(b) ? "mine" : "taken");
       else cls += "free";
 
+      if (selected[id]) cls += " sel";
+
       // 窄屏只显示选中的那一天（配合日期切换条）
       if (narrow && s !== activeDay) cls += " hid";
 
@@ -803,6 +849,14 @@ function render(){
       grid.appendChild(cell);
     });
   }
+
+  renderSelBar();
+}
+
+function renderSelBar(){
+  var n = Object.keys(selected).length;
+  document.getElementById("selNum").textContent = n;
+  document.getElementById("selBar").className = "selbar" + (n > 0 ? " on" : "");
 }
 
 /* ============================================================
@@ -817,7 +871,8 @@ document.getElementById("mask").onclick = function(e){ if (e.target === this) cl
 function onCellClick(dayStr, hour){
   if (!dbReady){ toast("数据未就绪，请刷新页面重试", true); return; }
 
-  var b = bookings[slotId(dayStr, hour)];
+  var id = slotId(dayStr, hour);
+  var b = bookings[id];
 
   if (b){
     if (isMine(b)) showCancel(dayStr, hour, b);
@@ -833,7 +888,17 @@ function onCellClick(dayStr, hour){
     return;
   }
 
-  showBook(dayStr, hour);
+  // 多选：点空格子累加，再点一次取消
+  if (selected[id]){
+    delete selected[id];
+  } else {
+    if (Object.keys(selected).length >= 8){
+      toast("一次最多约 8 段", true);
+      return;
+    }
+    selected[id] = { day: dayStr, hour: hour };
+  }
+  render();
 }
 
 /* ---------- 注册 / 登录 ---------- */
@@ -935,16 +1000,27 @@ function showAuth(mode){
   modal.onkeydown = function(e){ if (e.key === "Enter") submit(); };
 }
 
-/* ---------- 预约 ---------- */
-function showBook(dayStr, hour){
+/* ---------- 批量预约（可只选 1 段） ---------- */
+function showBatch(){
   if (!session){ showAuth("login"); return; }
 
-  var aqPick = "";   // 当前选中的水相；再点一次可取消
+  var ids = Object.keys(selected).sort();   // 'YYYY-MM-DD#HH#dev' 字典序即时间序
+  if (!ids.length){ toast("请先点选要预约的时段", true); return; }
+
+  var aqPick = "";
   var modal = document.getElementById("modal");
 
+  var listHtml = ids.map(function(id){
+    var p = id.split("#");
+    var h = parseInt(p[1], 10);
+    return '<div class="si"><span>' + dateCn(p[0]) + '</span>' +
+           '<span class="sh">' + pad(h) + ':00 – ' + pad(h + 1) + ':00</span></div>';
+  }).join("");
+
   modal.innerHTML =
-    '<h3>预约 · ' + escapeHtml(deviceName(currentDevice)) + '</h3>' +
-    '<div class="when">' + dateCn(dayStr) + '　' + slotCn(hour) + '</div>' +
+    '<h3>预约 ' + ids.length + ' 个时段 · ' + escapeHtml(deviceName(currentDevice)) + '</h3>' +
+    '<div class="when">水相和备注将应用到全部所选时段；要么全部约上，要么一个都不约</div>' +
+    '<div class="slist">' + listHtml + '</div>' +
     '<div class="fixed"><span>' + escapeHtml(session.display_name) + '</span><span>预约人（本人）</span></div>' +
     '<p class="fl">水相（选填）</p>' +
     '<div class="opts" id="aqOpts"></div>' +
@@ -953,8 +1029,8 @@ function showBook(dayStr, hour){
     '<textarea id="mNote" rows="2" maxlength="40" placeholder="如：样品 A / 反相"></textarea>' +
     '<div class="err" id="mErr"></div>' +
     '<div class="row">' +
-      '<button class="btn" id="mCancel">取消</button>' +
-      '<button class="btn primary" id="mOk">确认预约</button>' +
+      '<button class="btn" id="mCancel">返回重选</button>' +
+      '<button class="btn primary" id="mOk">确认预约 ' + ids.length + ' 段</button>' +
     '</div>';
 
   document.getElementById("mask").className = "mask on";
@@ -990,36 +1066,42 @@ function showBook(dayStr, hour){
     var err = document.getElementById("mErr");
     ok.disabled = true;
     ok.textContent = "提交中…";
+
+    var hours = ids.map(function(id){
+      var p = id.split("#");
+      return { day: p[0], hour: parseInt(p[1], 10) };
+    });
+
     try {
-      var r = await rpc("book_slot", {
-        p_day: dayStr,
-        p_hour: hour,
+      var r = await rpcJSON("book_slots", {
         p_session: session.token,
         p_device: currentDevice,
+        p_hours: hours,
         p_note: (document.getElementById("mNote").value || "").trim(),
         p_aqueous: aqValue()
       });
 
-      if (r === "OK"){
+      if (r && r.code === "OK"){
+        selected = {};
         closeModal();
-        toast("预约成功：" + dateCn(dayStr) + " " + slotCn(hour));
+        toast("成功预约 " + r.count + " 个时段");
         await load();
-      } else if (r === "TAKEN"){
-        ok.disabled = false; ok.textContent = "确认预约";
-        err.textContent = "手慢了，这个时段刚被别人约走";
-        await load();
-      } else if (r === "PAST"){
-        ok.disabled = false; ok.textContent = "确认预约";
-        err.textContent = "该时段已开始，不能预约";
-        await load();
-      } else if (r === "NO_AUTH"){
+      } else if (r && (r.code === "CONFLICT" || r.code === "TAKEN")){
+        ok.disabled = false;
+        ok.textContent = "确认预约 " + ids.length + " 段";
+        err.innerHTML = (r.list || []).map(escapeHtml).join("<br>");
+        await load();   // 刷新后失效的选中会自动清掉
+      } else if (r && r.code === "NO_AUTH"){
         onAuthLost();
-      } else if (r === "BAD_DEVICE"){
+      } else if (r && r.code === "BAD_DEVICE"){
         ok.disabled = false; ok.textContent = "确认预约";
         err.textContent = "设备参数有误，请刷新页面重试";
+      } else if (r && r.code === "TOO_MANY"){
+        ok.disabled = false; ok.textContent = "确认预约";
+        err.textContent = "一次最多约 8 段，请分批";
       } else {
         ok.disabled = false; ok.textContent = "确认预约";
-        err.textContent = "预约失败：" + r;
+        err.textContent = "预约失败：" + ((r && r.code) || "未知错误");
       }
     } catch (e){
       ok.disabled = false; ok.textContent = "确认预约";
@@ -1242,6 +1324,43 @@ function demoRpc(fn, p){
         };
         return resolve("OK");
       }
+      // 批量预约：与数据库 book_slots 完全一致——先全量检查，有冲突整体拒绝；否则逐条写入
+      if (fn === "book_slots"){
+        var rec7 = demoUserOf(p.p_session);
+        if (!rec7) return resolve({ code: "NO_AUTH" });
+        if (p.p_device !== "prep" && p.p_device !== "semi") return resolve({ code: "BAD_DEVICE" });
+        if (!Array.isArray(p.p_hours) || p.p_hours.length === 0) return resolve({ code: "EMPTY" });
+        if (p.p_hours.length > 8) return resolve({ code: "TOO_MANY" });
+
+        var conflicts = [];
+        p.p_hours.forEach(function(it){
+          var day = String(it.day || "");
+          var hr  = parseInt(it.hour, 10);
+          var md  = day.slice(5);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || isNaN(hr) || hr < 8 || hr > 21){
+            conflicts.push(md + " " + (isNaN(hr) ? "?" : hr) + ":00 时段无效");
+            return;
+          }
+          var end = parseYmd(day);
+          end.setHours(hr + 1, 0, 0, 0);
+          if (end.getTime() <= Date.now()){
+            conflicts.push(md + " " + hr + ":00 已过期");
+            return;
+          }
+          if (demoData[slotIdOf(day, hr, p.p_device)]){
+            conflicts.push(md + " " + hr + ":00 已被约");
+          }
+        });
+        if (conflicts.length) return resolve({ code: "CONFLICT", list: conflicts });
+
+        p.p_hours.forEach(function(it){
+          demoData[slotIdOf(it.day, it.hour, p.p_device)] = {
+            name: rec7.display, note: p.p_note || "",
+            aqueous: (p.p_aqueous || "").slice(0, 60), user_id: rec7.uid
+          };
+        });
+        return resolve({ code: "OK", count: p.p_hours.length });
+      }
       // 与数据库一致：只能取消自己名下的（按 user_id，不按姓名）
       if (fn === "cancel_slot"){
         var rec5 = demoUserOf(p.p_session);
@@ -1259,11 +1378,13 @@ function demoRpc(fn, p){
 /* ============================================================
    事件绑定与启动
    ============================================================ */
-document.getElementById("prevWeek").onclick = function(){ weekStart = addDays(weekStart, -7); load(); };
-document.getElementById("nextWeek").onclick = function(){ weekStart = addDays(weekStart, 7); load(); };
-document.getElementById("thisWeek").onclick = function(){ weekStart = mondayOf(new Date()); load(); };
+document.getElementById("prevWeek").onclick = function(){ selected = {}; weekStart = addDays(weekStart, -7); load(); };
+document.getElementById("nextWeek").onclick = function(){ selected = {}; weekStart = addDays(weekStart, 7); load(); };
+document.getElementById("thisWeek").onclick = function(){ selected = {}; weekStart = mondayOf(new Date()); load(); };
 document.getElementById("refresh").onclick = function(){ load(); loadMine(); toast("已刷新"); };
 document.getElementById("mineRefresh").onclick = function(){ loadMine(); toast("已刷新我的预约"); };
+document.getElementById("selClear").onclick = function(){ selected = {}; render(); };
+document.getElementById("selGo").onclick = function(){ showBatch(); };
 document.getElementById("copyWeek").onclick = function(){ copyText(weekText(), "排班已复制，可直接粘贴到群里"); };
 document.getElementById("copyLink").onclick = function(){
   copyText(location.origin + location.pathname + "?week=" + ymd(weekStart), "链接已复制");
