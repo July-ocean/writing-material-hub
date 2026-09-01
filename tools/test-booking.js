@@ -299,6 +299,55 @@ function ymdLocal(d) {
   ok(ctx.demoData[final2[0].id] && ctx.demoData[final2[1].id], "两段都写入 demoData");
   eq(ctx.demoData[final2[0].id].user_id, "u-1", "归属本人");
 
+  /* ---------- 预约时间上限（最多约到下周） ---------- */
+  console.log("\n[预约上限：只能约到下周]");
+  const nowMon = ctx.mondayOf(new Date());
+  const farDay = ctx.ymd(ctx.addDays(nowMon, 15));         // 下下周周二，必超上限
+  const nextMon = ctx.ymd(ctx.addDays(nowMon, 7));         // 下周周一（允许）
+
+  ok(ctx.isFar(farDay) === true, "下下周 isFar = true");
+  ok(ctx.isFar(nextMon) === false, "下周周一仍可约");
+  ok(ctx.isFar(ctx.ymd(ctx.addDays(nowMon, 13))) === false, "下周日（最后可约日）仍可约");
+  ok(ctx.isFar(ctx.ymd(ctx.addDays(nowMon, 14))) === true, "下下周一（第一个不可约日）isFar = true");
+
+  // 点超限格子：拒绝 + 提示
+  ctx.onCellClick(farDay, 10);
+  eq(Object.keys(ctx.selected).length, 0, "点下下周格子不进入选中");
+  ok(/只能约到|还没开放/.test(toastEl.textContent), "超限提示 toast（" + toastEl.textContent + "）");
+
+  // demoRpc book_slot / book_slots 复刻数据库拦截
+  r = await ctx.demoRpc("book_slot", {
+    p_session: ctx.session.token, p_device: "prep",
+    p_day: farDay, p_hour: 10, p_note: "", p_aqueous: "",
+  });
+  eq(r, "TOO_FAR", "book_slot 下下周 → TOO_FAR");
+
+  r = await ctx.demoRpc("book_slots", {
+    p_session: ctx.session.token, p_device: "prep",
+    p_hours: [{ day: farDay, hour: 10 }, { day: final2[0].day, hour: final2[0].hour }],
+    p_note: "", p_aqueous: "",
+  });
+  eq(r.code, "CONFLICT", "批量含下下周 → CONFLICT");
+  ok(/尚未开放/.test(r.list.join("")), "冲突文案含「尚未开放」");
+
+  // 周导航：翻到下周后「下一周」禁用；回到本周恢复
+  ctx.selected = {};
+  ctx.weekStart = ctx.maxWeekStart();
+  ctx.render();
+  ok(documentStub.getElementById("nextWeek").disabled === true, "翻到下周后「下一周」禁用");
+  ctx.weekStart = nowMon;
+  ctx.render();
+  ok(documentStub.getElementById("nextWeek").disabled === false, "本周时「下一周」可用");
+
+  // ?week= 参数超限时自动钳制到下周
+  const oldSearch = ctx.location.search;
+  ctx.location.search = "?demo=1&week=2027-01-04";
+  ctx.initWeek();
+  eq(ctx.ymd(ctx.weekStart), ctx.ymd(ctx.maxWeekStart()), "?week= 超限自动钳制到下周");
+  ctx.location.search = oldSearch;
+  ctx.initWeek();
+  ctx.load();
+
   /* ---------- 汇总 ---------- */
   console.log("\n=================================");
   console.log("通过 " + passed + " 项，失败 " + failed + " 项");

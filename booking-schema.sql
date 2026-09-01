@@ -237,7 +237,8 @@ $$;
 -- 9) 预约（必须已登录）
 --    p_device : 'prep' 制备 / 'semi' 半制备
 --    p_aqueous: 水相，可为空；选「其它」时前端传 '其它：xxx'
---    返回 OK / TAKEN / PAST / OUT_OF_RANGE / BAD_DEVICE / NO_AUTH
+--    返回 OK / TAKEN / PAST / TOO_FAR / OUT_OF_RANGE / BAD_DEVICE / NO_AUTH
+--    TOO_FAR：超出预约窗口（只能约到下周，下下周一起不开放）
 -- ============================================================
 create or replace function public.book_slot(
   p_day     date,
@@ -252,8 +253,9 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  v_uid  uuid;
-  v_name text;
+  v_uid   uuid;
+  v_name  text;
+  v_limit date;   -- 第一个不可预约的日期：下下周一
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -274,6 +276,12 @@ begin
 
   if p_hour < 8 or p_hour > 21 then
     return 'OUT_OF_RANGE';
+  end if;
+
+  -- 预约窗口上限：只能约到下周（date_trunc('week') 取本周周一，+14 天 = 下下周一）
+  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+  if p_day >= v_limit then
+    return 'TOO_FAR';
   end if;
 
   -- 已开始的时段不能约（北京时间）
@@ -359,6 +367,7 @@ declare
   v_hour      int;
   v_conflicts text[] := '{}';
   v_ok        int := 0;
+  v_limit     date;   -- 第一个不可预约的日期：下下周一
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -383,6 +392,9 @@ begin
     return json_build_object('code', 'TOO_MANY');
   end if;
 
+  -- 预约窗口上限：只能约到下周（date_trunc('week') 取本周周一，+14 天 = 下下周一）
+  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+
   -- 先全部检查：任何一个不可用 → 整体拒绝，一个都不插
   for v_item in select * from jsonb_array_elements(p_hours) loop
     v_day  := (v_item ->> 'day')::date;
@@ -390,6 +402,8 @@ begin
 
     if v_hour is null or v_hour < 8 or v_hour > 21 then
       v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || coalesce(v_hour::text, '?') || ':00 时段无效');
+    elsif v_day >= v_limit then
+      v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || v_hour || ':00 尚未开放');
     elsif (v_day + v_hour * interval '1 hour') < (now() at time zone 'Asia/Shanghai') then
       v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || v_hour || ':00 已过期');
     elsif exists (

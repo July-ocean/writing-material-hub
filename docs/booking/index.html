@@ -164,6 +164,12 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
 .cell.past .nm{color:#b3bac6;font-weight:400}
 .cell.past .nt{color:#c4cad4}
 .cell.hid{display:none}
+/* 超出预约上限（下下周及以后）：还没开放 */
+.cell.far{background:#f6f7f9;cursor:not-allowed}
+.cell.far .tm{color:#c4cad4}
+.cell.far::after{
+  content:"未开放";position:absolute;left:0;right:0;bottom:2px;font-size:9px;color:#b3bac6;text-align:center;
+}
 .cell.pending{opacity:.55}
 
 /* ---------- 多选 ---------- */
@@ -419,6 +425,8 @@ function initWeek(){
     base = today < open ? open : today;
   }
   weekStart = mondayOf(base);
+  // 上限：再往后翻没意义（下下周及以后还不能约），钳到下周
+  if (ymd(weekStart) > ymd(maxWeekStart())) weekStart = maxWeekStart();
   var ts = ymd(new Date());
   activeDay = (ymd(weekStart) <= ts && ts <= ymd(addDays(weekStart, 6))) ? ts : ymd(weekStart);
 }
@@ -436,6 +444,20 @@ function isPast(dayStr, hour){
   var end = parseYmd(dayStr);
   end.setHours(hour + 1, 0, 0, 0);
   return end.getTime() <= Date.now();
+}
+
+/* ---- 预约时间上限：只能约到下周（下周日），下下周一开始不开放 ---- */
+// 第一个不可预约的日期（下下周周一），'YYYY-MM-DD'
+function farLimitStr(){ return ymd(addDays(mondayOf(new Date()), 14)); }
+// 可预约的最后一天（下周日），用于提示文案
+function lastBookableStr(){ return ymd(addDays(mondayOf(new Date()), 13)); }
+// 周导航能到的最后一周围一（下周一）
+function maxWeekStart(){ return addDays(mondayOf(new Date()), 7); }
+function isFar(dayStr){ return dayStr >= farLimitStr(); }   // ISO 日期可直接按字典序比
+function farHint(){
+  var d = parseYmd(lastBookableStr());
+  return "现在只能约到 " + (d.getMonth()+1) + "月" + d.getDate() + "日（下周日），" +
+         "再往后的时段还没开放";
 }
 function isMine(b){ return !!(session && b && b.user_id && b.user_id === session.user_id); }
 function dateCn(dayStr){
@@ -749,10 +771,10 @@ function render(){
   for (var i = 0; i < 7; i++) days.push(addDays(weekStart, i));
   var narrow = isNarrow();
 
-  // 清理：选中后已被别人约走的时段（或已过期）
+  // 清理：选中后已被别人约走、已过期、或超出开放范围的时段
   Object.keys(selected).forEach(function(id){
     var s = selected[id];
-    if (bookings[id] || isPast(s.day, s.hour)) delete selected[id];
+    if (bookings[id] || isPast(s.day, s.hour) || isFar(s.day)) delete selected[id];
   });
 
   document.getElementById("range").textContent =
@@ -807,11 +829,12 @@ function render(){
       var cell = document.createElement("div");
       var cls = "cell ";
 
-      if (isPast(s, hr)) cls += "past";
+      if (isFar(s)) cls += "far";                 // 还没开放（下下周及以后）
+      else if (isPast(s, hr)) cls += "past";
       else if (b) cls += (isMine(b) ? "mine" : "taken");
       else cls += "free";
 
-      if (selected[id]) cls += " sel";
+      if (selected[id] && cls === "cell free") cls += " sel";
 
       // 窄屏只显示选中的那一天（配合日期切换条）
       if (narrow && s !== activeDay) cls += " hid";
@@ -853,6 +876,9 @@ function render(){
     });
   }
 
+  // 翻到下周就到头了：下下周及以后不开放
+  document.getElementById("nextWeek").disabled = (ymd(weekStart) >= ymd(maxWeekStart()));
+
   renderSelBar();
 }
 
@@ -884,6 +910,8 @@ function onCellClick(dayStr, hour){
   }
 
   if (isPast(dayStr, hour)){ toast("该时段已开始，不能预约", true); return; }
+
+  if (isFar(dayStr)){ toast(farHint(), true); return; }   // 最多约到下周
 
   if (!session){
     toast("请先登录后再预约", true);
@@ -1315,6 +1343,7 @@ function demoRpc(fn, p){
         if (!rec4) return resolve("NO_AUTH");
         if (p.p_device !== "prep" && p.p_device !== "semi") return resolve("BAD_DEVICE");
         if (p.p_hour < 8 || p.p_hour > 21) return resolve("OUT_OF_RANGE");
+        if (isFar(p.p_day)) return resolve("TOO_FAR");   // 与数据库一致：最多约到下周
         // 主键含设备：同设备同时段互斥，另一台设备不受影响
         var id = slotIdOf(p.p_day, p.p_hour, p.p_device);
         if (demoData[id]) return resolve("TAKEN");
@@ -1352,7 +1381,9 @@ function demoRpc(fn, p){
           }
           if (demoData[slotIdOf(day, hr, p.p_device)]){
             conflicts.push(md + " " + hr + ":00 已被约");
+            return;
           }
+          if (isFar(day)) conflicts.push(md + " " + hr + ":00 尚未开放");
         });
         if (conflicts.length) return resolve({ code: "CONFLICT", list: conflicts });
 
@@ -1382,7 +1413,12 @@ function demoRpc(fn, p){
    事件绑定与启动
    ============================================================ */
 document.getElementById("prevWeek").onclick = function(){ selected = {}; weekStart = addDays(weekStart, -7); load(); };
-document.getElementById("nextWeek").onclick = function(){ selected = {}; weekStart = addDays(weekStart, 7); load(); };
+document.getElementById("nextWeek").onclick = function(){
+  if (ymd(weekStart) >= ymd(maxWeekStart())){ toast(farHint(), true); return; }
+  selected = {};
+  weekStart = addDays(weekStart, 7);
+  load();
+};
 document.getElementById("thisWeek").onclick = function(){ selected = {}; weekStart = mondayOf(new Date()); load(); };
 document.getElementById("refresh").onclick = function(){ load(); loadMine(); toast("已刷新"); };
 document.getElementById("mineRefresh").onclick = function(){ loadMine(); toast("已刷新我的预约"); };
