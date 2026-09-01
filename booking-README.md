@@ -210,6 +210,12 @@ https://july-ocean.github.io/writing-material-hub/booking/?demo=1&week=2026-09-0
 三种情况：格子已被别人约了（显示对方姓名）、时段已开始（置灰）、还没登录。
 前两种是正常限制，第三种会弹出登录框。
 
+**Q：注册/登录报 `gen_salt does not exist`（或类似 unknown gen salt）？**
+这是 `pgcrypto` 扩展装在了 `extensions` schema，而函数的 `search_path` 只写了 `public`，
+函数内部找不到 `gen_salt` / `crypt`。去 SQL Editor 跑一遍 **`booking-fix-pgcrypto.sql`** 就好
+（里面就是 1 句建扩展 + 7 句 `alter function ... set search_path = public, extensions`）。
+主版 `booking-schema.sql` 已经修正，重跑主文件也不会再复发。
+
 **Q：加载失败 / 提示数据库未初始化？**
 第 1 步的 SQL 没跑成功。回 Supabase 的 SQL Editor 看报错。
 

@@ -7,7 +7,11 @@
 -- 幂等：可重复执行。已建旧表的重跑即可升级（补列、换主键格式、迁移旧数据）。
 -- ============================================================
 
-create extension if not exists pgcrypto;
+-- 密码哈希需要 pgcrypto；Supabase 约定扩展装在 extensions schema，
+-- 因此下面所有函数的 search_path 都写成 public, extensions，
+-- 否则函数内部找不到 gen_salt / crypt（会报 gen_salt does not exist）
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 -- ============================================================
 -- 1) 用户表
@@ -110,7 +114,7 @@ create or replace function public.register_user(
 ) returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_u text := lower(btrim(coalesce(p_username, '')));
@@ -147,7 +151,7 @@ create or replace function public.login_user(p_username text, p_password text)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_u   text := lower(btrim(coalesce(p_username, '')));
@@ -182,7 +186,7 @@ create or replace function public.me(p_token text)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_rec record;
@@ -216,7 +220,7 @@ create or replace function public.logout(p_token text)
 returns void
 language sql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
   delete from public.prep_sessions where token = p_token;
 $$;
@@ -237,7 +241,7 @@ create or replace function public.book_slot(
 ) returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid  uuid;
@@ -294,7 +298,7 @@ create or replace function public.cancel_slot(p_id text, p_session text)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid uuid;
@@ -329,7 +333,7 @@ create or replace function public.my_bookings(p_session text)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_uid uuid;
