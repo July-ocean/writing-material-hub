@@ -205,6 +205,14 @@ begin
     return null;
   end if;
 
+  -- 滑动续期：剩余有效期不足 7 天时，自动再延 30 天。
+  -- 每次打开页面都会调 me()，所以常来预约的人不会莫名掉线；
+  -- 长时间不来的（超过 30 天）会话自然失效，仍需重新登录。
+  update public.prep_sessions
+     set expires_at = now() + interval '30 days'
+   where token = p_token
+     and expires_at < now() + interval '7 days';
+
   return json_build_object(
     'user_id',      v_rec.id,
     'username',     v_rec.username,

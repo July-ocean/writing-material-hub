@@ -154,6 +154,29 @@ update public.prep_users
 
 让他登录后自行修改（当前页面暂无改密码入口，需要的话可以加）。
 
+### 登录有效期（滑动续期）
+
+会话 30 天有效，**滑动续期**：剩余不足 7 天时，下次打开页面自动再延 30 天。
+所以常来预约的人不会莫名掉线；超过 30 天没来的人需要重新登录（符合预期）。
+
+老库需先跑一次 **`booking-session-renew.sql`**（只替换 `me()` 函数，不动数据）。
+想看谁的会话什么时候到期：
+
+```sql
+select u.username, u.display_name, s.expires_at
+  from public.prep_sessions s
+  join public.prep_users u on u.id = s.user_id
+ order by s.expires_at desc;
+```
+
+### 长期运行要注意的两件事
+
+1. **Supabase 免费项目连续 7 天没有任何请求就会自动暂停**，页面会读不到数据。
+   目前靠本项目里的每日自动更新任务顺带保活；如果那条 automation 停了，
+   就得去 Supabase 后台手动 Resume，或者另加一个定时访问页面的保活任务。
+2. **免费档没有自动备份**。预约数据重要的话定期导出一次：
+   SQL Editor 里跑 `select * from public.prep_bookings;`，再点结果区右上角 Export。
+
 ### 强制删除某个时段（绕过归属校验）
 
 ```sql
