@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>制备 / 半制备系统预约</title>
+<style>
+:root{
+  --bg:#f4f6fa;
+  --card:#ffffff;
+  --line:#e4e8f0;
+  --text:#1f2430;
+  --muted:#7a8394;
+  --brand:#2563eb;
+  --brand-soft:#eaf1ff;
+  --danger:#dc2626;
+  --radius:12px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.5;padding-bottom:44px;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:16px 14px}
+
+/* ---------- header ---------- */
+header{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 16px 14px;margin-bottom:12px;
+}
+h1{font-size:19px;margin:0 0 4px;letter-spacing:.5px}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.weeknav{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.weeknav .range{
+  flex:1;min-width:160px;text-align:center;font-weight:600;font-size:15px;
+  background:var(--brand-soft);color:var(--brand);border-radius:8px;padding:7px 10px;
+}
+button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:none;color:inherit}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;transition:.15s}
+.btn:hover{border-color:#c3ccdb}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.ghost{color:var(--muted)}
+.btn.sm{padding:5px 11px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ---------- device tabs ---------- */
+.devtabs{display:flex;gap:9px;margin-bottom:12px}
+.dtab{
+  flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;
+  padding:10px 8px;text-align:center;line-height:1.3;transition:.15s;
+}
+.dtab .dn{display:block;font-size:15px;font-weight:600}
+.dtab .ds{display:block;font-size:11px;color:var(--muted)}
+.dtab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.dtab.on .ds{color:#dbe6ff}
+
+/* ---------- auth bar ---------- */
+.authbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 14px;margin-bottom:12px;
+}
+.who{flex:1;min-width:130px;font-size:14px;color:var(--muted)}
+.who b{color:var(--text);font-size:15px}
+.who .tag{
+  display:inline-block;font-size:11px;background:#ecfdf5;color:#047857;
+  border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:1px;
+}
+.authacts{display:flex;gap:8px}
+
+/* ---------- my bookings ---------- */
+.minebox{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:12px;
+}
+.minehd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.minehd .mt{font-size:14px;font-weight:600}
+.minehd .mt b{color:var(--brand);font-size:15px}
+.minelist{display:flex;flex-direction:column;gap:7px}
+.mi{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fbfcfe}
+.mi.past{opacity:.55}
+.mi .mt2{flex:1;min-width:0}
+.mi .md{font-size:14px;font-weight:600;line-height:1.35}
+.mi .mn2{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dvt{
+  display:inline-block;font-size:11px;background:#eef2f7;color:#5b6577;
+  border-radius:4px;padding:1px 6px;margin-left:7px;vertical-align:2px;font-weight:400;
+}
+.opts{display:flex;gap:7px;flex-wrap:wrap}
+.opt{
+  border:1px solid var(--line);background:#fbfcfe;border-radius:20px;
+  padding:7px 14px;font-size:13px;font-family:inherit;cursor:pointer;transition:.15s;
+}
+.opt.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:600}
+.mi .mgo{
+  flex:0 0 auto;border:1px solid #fecaca;color:var(--danger);background:#fff5f5;
+  border-radius:7px;padding:6px 12px;font-size:13px;font-family:inherit;cursor:pointer;
+}
+.mi .mgo:active{transform:scale(.96)}
+.mi .mgo[disabled]{opacity:.5;cursor:not-allowed}
+.empty{color:var(--muted);font-size:13px;padding:4px 2px;line-height:1.6}
+
+/* ---------- demo bar ---------- */
+.demobar{
+  background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;
+  border-radius:var(--radius);padding:10px 13px;font-size:13px;margin-bottom:12px;line-height:1.65;
+}
+
+/* ---------- mobile day tabs ---------- */
+.daytabs{display:none;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+.daytabs .dt{
+  flex:0 0 auto;min-width:56px;text-align:center;
+  border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 6px;line-height:1.25;
+}
+.daytabs .dt .w{font-size:11px;color:var(--muted);display:block}
+.daytabs .dt .d{font-size:15px;font-weight:600;display:block}
+.daytabs .dt.today .d{color:var(--brand)}
+.daytabs .dt.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.daytabs .dt.on .w{color:#dbe6ff}
+.daytabs .dt .dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--brand);margin-left:3px;vertical-align:2px;
+}
+.daytabs .dt.on .dot{background:#fff}
+
+/* ---------- grid ---------- */
+.board{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.grid{display:grid;grid-template-columns:56px repeat(7,1fr)}
+.hd{
+  padding:9px 4px;text-align:center;font-size:13px;font-weight:600;
+  border-bottom:1px solid var(--line);border-left:1px solid var(--line);
+  background:#fafbfd;position:sticky;top:0;z-index:2;
+}
+.hd.corner{border-left:none}
+.hd .w{display:block}
+.hd .d{display:block;font-size:11px;color:var(--muted);font-weight:400}
+.hd.today{background:var(--brand-soft);color:var(--brand)}
+.hd.today .d{color:var(--brand)}
+.timecell{
+  padding:6px 4px;text-align:center;font-size:11px;color:var(--muted);
+  border-left:1px solid var(--line);border-bottom:1px solid #f0f2f7;
+  background:#fafbfd;display:flex;align-items:center;justify-content:center;
+}
+.cell{
+  border-left:1px solid var(--line);border-bottom:1px solid #f0f2f7;
+  min-height:46px;padding:6px;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:center;gap:1px;
+  transition:background .12s;position:relative;
+}
+.cell .nm{font-size:13px;font-weight:600;word-break:break-all;line-height:1.25}
+.cell .nt{font-size:11px;color:var(--muted);word-break:break-all;line-height:1.2;max-height:2.4em;overflow:hidden}
+.cell .tm{display:none}
+.cell.free:hover{background:#f2f6fd}
+.cell.mine{box-shadow:inset 0 0 0 2px var(--brand);background:var(--brand-soft) !important}
+.cell.mine .nm{color:var(--brand)}
+.cell.mine::after{
+  content:"我的";position:absolute;top:2px;right:3px;font-size:9px;color:var(--brand);opacity:.9;
+}
+.cell.past{background:#f6f7f9;cursor:not-allowed}
+.cell.past .nm{color:#b3bac6;font-weight:400}
+.cell.past .nt{color:#c4cad4}
+.cell.hid{display:none}
+.cell.pending{opacity:.55}
+
+/* ---------- footer ---------- */
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:12px 2px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lg-free{background:#fff;border:1px solid var(--line)}
+.lg-taken{background:#eef1f6;border:1px solid var(--line)}
+.lg-mine{background:var(--brand-soft);box-shadow:inset 0 0 0 2px var(--brand)}
+.lg-past{background:#f6f7f9}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.tip{
+  margin-top:14px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+  border-radius:var(--radius);padding:11px 13px;font-size:12.5px;line-height:1.7;
+}
+
+/* ---------- modal ---------- */
+.mask{position:fixed;inset:0;background:rgba(20,25,35,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+.mask.on{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:360px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.18);max-height:88vh;overflow-y:auto}
+.modal h3{margin:0 0 4px;font-size:17px}
+.modal .when{color:var(--muted);font-size:13px;margin-bottom:14px}
+.modal input{
+  width:100%;font-family:inherit;font-size:15px;border:1px solid var(--line);
+  border-radius:9px;padding:10px 11px;outline:none;background:#fbfcfe;margin-bottom:10px;
+}
+.modal textarea{
+  width:100%;font-family:inherit;font-size:15px;border:1px solid var(--line);
+  border-radius:9px;padding:10px 11px;outline:none;background:#fbfcfe;margin-bottom:10px;resize:none;
+}
+.modal input:focus,.modal textarea:focus{border-color:var(--brand);background:#fff}
+.modal .fl{font-size:12px;color:var(--muted);margin:0 0 6px}
+.modal .row{display:flex;gap:9px;margin-top:6px}
+.modal .row .btn{flex:1;padding:11px;text-align:center}
+.modal .fixed{
+  background:#f6f8fc;border:1px solid var(--line);border-radius:9px;
+  padding:9px 11px;font-size:14px;margin-bottom:12px;display:flex;justify-content:space-between;
+}
+.modal .fixed span:last-child{color:var(--muted);font-size:12px;align-self:center}
+.err{color:var(--danger);font-size:13px;min-height:19px;margin:2px 0 6px}
+.sw{text-align:center;font-size:13px;color:var(--muted);margin-top:12px}
+.sw a{color:var(--brand);cursor:pointer;text-decoration:none}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:34px;transform:translate(-50%,14px);
+  background:#1f2430;color:#fff;padding:10px 18px;border-radius:22px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.22s;z-index:99;max-width:80vw;text-align:center;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.bad{background:var(--danger)}
+
+/* ---------- mobile ---------- */
+@media (max-width:820px){
+  .wrap{padding:12px 10px}
+  .grid{grid-template-columns:1fr}
+  .hd.corner,.timecell,.hd{display:none}
+  .daytabs{display:flex}
+  .cell{
+    min-height:64px;flex-direction:row;align-items:center;gap:10px;
+    border-radius:10px;border:1px solid var(--line);margin:5px 10px;padding:9px 12px;
+  }
+  .cell .tm{display:block;flex:0 0 auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:80px}
+  .cell .nm{font-size:14px}
+  .cell .nt{font-size:12px;flex:1;text-align:right}
+  .cell.mine::after{top:5px;right:8px}
+  .board{background:transparent;border:none;border-radius:0;overflow:visible}
+  .legend{margin-left:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="demobar" id="demoBar" style="display:none"></div>
+
+  <header>
+    <h1>制备 / 半制备系统预约</h1>
+    <p class="sub">每日 08:00–22:00 · 1 小时为一个时段 · 先约先得，一人一格</p>
+    <div class="weeknav">
+      <button class="btn" id="prevWeek">← 上一周</button>
+      <div class="range" id="range">—</div>
+      <button class="btn" id="nextWeek">下一周 →</button>
+      <button class="btn ghost" id="thisWeek">本周</button>
+      <button class="btn ghost" id="refresh">刷新</button>
+    </div>
+  </header>
+
+  <div class="devtabs" id="devTabs"></div>
+
+  <div class="authbar">
+    <span class="who" id="who">未登录</span>
+    <span class="authacts" id="authActs"></span>
+  </div>
+
+  <div class="minebox">
+    <div class="minehd">
+      <span class="mt">我的预约 <b id="mineNum">0</b></span>
+      <button class="btn ghost sm" id="mineRefresh">刷新</button>
+    </div>
+    <div class="minelist" id="mineList"></div>
+  </div>
+
+  <div class="daytabs" id="dayTabs"></div>
+
+  <div class="board">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="legend">
+    <span><i class="lg-free"></i>可预约</span>
+    <span><i class="lg-taken"></i>已被约（显示预约人）</span>
+    <span><i class="lg-mine"></i>我的预约</span>
+    <span><i class="lg-past"></i>已过期</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="copyWeek">复制本周排班</button>
+    <button class="btn ghost" id="copyLink">复制预约链接</button>
+  </div>
+
+  <div class="tip" id="tip"></div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   配置区
+   ============================================================ */
+var SUPABASE_URL = "https://upcknogedaijbtrawsri.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwY2tub2dlZGFpamJ0cmF3c3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDkyODEsImV4cCI6MjA5OTY4NTI4MX0.KLkDWRMd6eC_SXy0ngQ8Ilx4vstjbGK-UJRTSjKwtOc";
+
+var OPEN_FROM = "2026-09-07";   // 开放起始日；早于该日期时默认停在这一天所在周
+var DAY_START = 8;
+var DAY_END   = 22;             // 最后时段 21:00-22:00
+var WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周日"];
+
+// 两台设备，各自独立预约
+var DEVICES = [
+  { key: "prep", name: "制备"   },
+  { key: "semi", name: "半制备" }
+];
+// 水相选项；选「其它」时前端存成 "其它：xxx"
+var AQUEOUS_OPTIONS = ["0.05%盐酸", "0.1%甲酸", "其它"];
+
+/* 演示模式：?demo=1，数据只在内存里，刷新即恢复（仅用于预览效果） */
+var DEMO = /[?&]demo=1/.test(location.search);
+
+/* ============================================================
+   工具
+   ============================================================ */
+var API = SUPABASE_URL.replace(/\/$/, "") + "/rest/v1";
+var HEADERS = {
+  "apikey": SUPABASE_ANON_KEY,
+  "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+  "Content-Type": "application/json"
+};
+var LS_SESSION = "prep_booking_session";
+var LS_DEVICE  = "prep_booking_device";
+
+function pad(n){ return n < 10 ? "0" + n : "" + n; }
+function ymd(d){ return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function parseYmd(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+function addDays(d, n){ var x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+function mondayOf(d){
+  var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var w = x.getDay();
+  return addDays(x, w === 0 ? -6 : 1 - w);
+}
+function isNarrow(){
+  return window.matchMedia
+    ? window.matchMedia("(max-width: 820px)").matches
+    : window.innerWidth <= 820;
+}
+function escapeHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+  });
+}
+
+var toastTimer = null;
+function toast(msg, bad){
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast on" + (bad ? " bad" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.className = "toast"; }, 2500);
+}
+
+function hueOf(str){
+  var h = 0;
+  for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+/* ============================================================
+   状态
+   ============================================================ */
+var weekStart = null;
+var activeDay = null;
+var currentDevice = "prep";   // 当前查看/预约的设备
+var bookings = {};            // id -> {name, note, aqueous, user_id}
+var myBookings = [];
+var session = null;      // {token, user_id, username, display_name}
+var loading = false;
+var dbReady = false;
+
+function initWeek(){
+  var q = new URLSearchParams(location.search).get("week");
+  var base;
+  if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) base = parseYmd(q);
+  else {
+    var today = new Date();
+    var open = parseYmd(OPEN_FROM);
+    base = today < open ? open : today;
+  }
+  weekStart = mondayOf(base);
+  var ts = ymd(new Date());
+  activeDay = (ymd(weekStart) <= ts && ts <= ymd(addDays(weekStart, 6))) ? ts : ymd(weekStart);
+}
+
+// id 格式：'YYYY-MM-DD#HH#设备'，主键唯一 → 同设备同时段只能一个人
+function slotIdOf(dayStr, hour, device){ return dayStr + "#" + pad(hour) + "#" + device; }
+function slotId(dayStr, hour){ return slotIdOf(dayStr, hour, currentDevice); }
+function hourOf(id){ return parseInt(String(id).split("#")[1], 10); }
+function deviceOf(id){ return String(id).split("#")[2]; }
+function deviceName(key){
+  for (var i = 0; i < DEVICES.length; i++) if (DEVICES[i].key === key) return DEVICES[i].name;
+  return key;
+}
+function isPast(dayStr, hour){
+  var end = parseYmd(dayStr);
+  end.setHours(hour + 1, 0, 0, 0);
+  return end.getTime() <= Date.now();
+}
+function isMine(b){ return !!(session && b && b.user_id && b.user_id === session.user_id); }
+function dateCn(dayStr){
+  var d = parseYmd(dayStr), w = d.getDay();
+  return (d.getMonth()+1) + "月" + d.getDate() + "日 " + WEEKDAY_CN[w === 0 ? 6 : w-1];
+}
+function slotCn(hour){ return pad(hour) + ":00 – " + pad(hour+1) + ":00"; }
+
+/* ============================================================
+   RPC
+   ============================================================ */
+async function rpc(fn, payload){
+  if (DEMO) return demoRpc(fn, payload);
+  var res = await fetch(API + "/rpc/" + fn, {
+    method: "POST", headers: HEADERS, body: JSON.stringify(payload)
+  });
+  if (res.ok) {
+    var v = await res.json();
+    return (typeof v === "string") ? v : "OK";
+  }
+  var msg = "操作失败";
+  try { var j = await res.json(); if (j && j.message) msg = j.message; } catch (_) {}
+  throw new Error(msg);
+}
+
+// 返回 json 的函数（me / my_bookings）；无效会话返回 null
+async function rpcJSON(fn, payload){
+  if (DEMO) return demoRpc(fn, payload);
+  var res = await fetch(API + "/rpc/" + fn, {
+    method: "POST", headers: HEADERS, body: JSON.stringify(payload)
+  });
+  if (res.status === 204) return null;
+  if (res.ok) {
+    var txt = await res.text();
+    if (!txt || txt === "null") return null;
+    try { return JSON.parse(txt); } catch (_) { return null; }
+  }
+  var msg = "操作失败";
+  try { var j = await res.json(); if (j && j.message) msg = j.message; } catch (_) {}
+  throw new Error(msg);
+}
+
+// 会话失效时统一处理：清登录态并提示
+function onAuthLost(){
+  session = null;
+  try { localStorage.removeItem(LS_SESSION); } catch (_) {}
+  myBookings = [];
+  renderAuth();
+  renderMine();
+  render();
+  toast("登录已过期，请重新登录", true);
+}
+
+/* ============================================================
+   会话
+   ============================================================ */
+function saveSession(){
+  try { localStorage.setItem(LS_SESSION, JSON.stringify(session)); } catch (_) {}
+}
+
+async function restoreSession(){
+  var raw = null;
+  try { raw = localStorage.getItem(LS_SESSION); } catch (_) {}
+  if (!raw) return;
+  var s;
+  try { s = JSON.parse(raw); } catch (_) { return; }
+  if (!s || !s.token) return;
+
+  try {
+    var me = await rpcJSON("me", { p_token: s.token });
+    if (me && me.user_id) {
+      session = {
+        token: s.token,
+        user_id: me.user_id,
+        username: me.username,
+        display_name: me.display_name
+      };
+    } else {
+      try { localStorage.removeItem(LS_SESSION); } catch (_) {}
+    }
+  } catch (_) {
+    // 网络异常时保留本地登录态，页面仍可查看排班
+    session = {
+      token: s.token,
+      user_id: s.user_id || "",
+      username: s.username || "",
+      display_name: s.display_name || ""
+    };
+  }
+}
+
+async function doLogout(){
+  var token = session && session.token;
+  session = null;
+  myBookings = [];
+  try { localStorage.removeItem(LS_SESSION); } catch (_) {}
+  if (token && !DEMO){
+    try { await rpcJSON("logout", { p_token: token }); } catch (_) {}
+  }
+  renderAuth();
+  renderMine();
+  render();
+  toast("已退出登录");
+}
+
+/* ============================================================
+   数据加载
+   ============================================================ */
+async function load(){
+  if (loading) return;
+  loading = true;
+  var from = ymd(weekStart), to = ymd(addDays(weekStart, 6));
+  try {
+    if (DEMO){
+      // 演示数据里混着两台设备，这里只取当前设备
+      bookings = {};
+      Object.keys(demoData).forEach(function(id){
+        if (deviceOf(id) === currentDevice) bookings[id] = demoData[id];
+      });
+      dbReady = true;
+      render();
+      return;
+    }
+    var res = await fetch(
+      API + "/prep_bookings?select=day,hour,name,note,aqueous,user_id"
+         + "&day=gte." + from + "&day=lte." + to
+         + "&device=eq." + currentDevice,
+      { headers: HEADERS }
+    );
+    if (!res.ok) throw new Error("读取失败 " + res.status);
+    var rows = await res.json();
+    bookings = {};
+    rows.forEach(function(r){
+      var d = (r.day || "").slice(0, 10);
+      bookings[slotId(d, r.hour)] = {
+        name: r.name, note: r.note || "", aqueous: r.aqueous || "",
+        user_id: r.user_id || null
+      };
+    });
+    dbReady = true;
+    render();
+  } catch (e) {
+    bookings = {};
+    dbReady = false;
+    render();
+    var m = String((e && e.message) || "");
+    if (m.indexOf("prep_bookings") >= 0 || m.indexOf("404") >= 0){
+      toast("数据库尚未初始化：请先在 Supabase 执行 booking-schema.sql", true);
+    } else {
+      toast("加载失败，请检查网络", true);
+    }
+  } finally {
+    loading = false;
+    loadMine();
+  }
+}
+
+async function loadMine(){
+  if (!session){
+    myBookings = [];
+    renderMine();
+    return;
+  }
+  if (DEMO){
+    var today0 = ymd(new Date());
+    myBookings = Object.keys(demoData)
+      .filter(function(id){
+        var b = demoData[id];
+        return b.user_id === session.user_id && id.slice(0, 10) >= today0;
+      })
+      .map(function(id){
+        return {
+          day: id.slice(0, 10),
+          hour: hourOf(id),
+          device: deviceOf(id),
+          name: demoData[id].name,
+          note: demoData[id].note,
+          aqueous: demoData[id].aqueous || ""
+        };
+      })
+      .sort(function(a, b){ return a.day < b.day ? -1 : (a.day > b.day ? 1 : a.hour - b.hour); });
+    renderMine();
+    return;
+  }
+  try {
+    var list = await rpcJSON("my_bookings", { p_session: session.token });
+    if (list === null){ onAuthLost(); return; }
+    myBookings = list || [];
+    renderMine();
+  } catch (e) {
+    var box = document.getElementById("mineList");
+    box.innerHTML = '<div class="empty">我的预约加载失败，请点「刷新」重试。</div>';
+  }
+}
+
+/* ============================================================
+   渲染
+   ============================================================ */
+function renderDevices(){
+  var box = document.getElementById("devTabs");
+  box.innerHTML = "";
+  DEVICES.forEach(function(d){
+    var b = document.createElement("button");
+    b.className = "dtab" + (d.key === currentDevice ? " on" : "");
+    b.innerHTML = '<span class="dn">' + d.name + '</span><span class="ds">液相色谱系统</span>';
+    b.onclick = function(){
+      if (d.key === currentDevice) return;
+      currentDevice = d.key;
+      try { localStorage.setItem(LS_DEVICE, d.key); } catch (_) {}
+      renderDevices();
+      load();
+    };
+    box.appendChild(b);
+  });
+}
+
+function initDevice(){
+  var q = new URLSearchParams(location.search).get("device");
+  if (q === "prep" || q === "semi"){ currentDevice = q; return; }
+  var saved = null;
+  try { saved = localStorage.getItem(LS_DEVICE); } catch (_) {}
+  if (saved === "prep" || saved === "semi") currentDevice = saved;
+}
+
+function renderAuth(){
+  var who = document.getElementById("who");
+  var acts = document.getElementById("authActs");
+
+  if (session){
+    who.innerHTML = '已登录 <b>' + escapeHtml(session.display_name) + '</b>' +
+                    '<span class="tag">' + escapeHtml(session.username) + '</span>';
+    acts.innerHTML = '<button class="btn ghost sm" id="btnLogout">退出</button>';
+    document.getElementById("btnLogout").onclick = doLogout;
+  } else {
+    who.textContent = "未登录 · 注册账号后才能预约";
+    acts.innerHTML =
+      '<button class="btn sm" id="btnReg">注册</button>' +
+      '<button class="btn primary sm" id="btnLogin">登录</button>';
+    document.getElementById("btnReg").onclick = function(){ showAuth("register"); };
+    document.getElementById("btnLogin").onclick = function(){ showAuth("login"); };
+  }
+  renderTip();
+}
+
+function renderTip(){
+  document.getElementById("tip").innerHTML =
+    "<b>使用说明</b><br>" +
+    "1. 先<b>注册账号</b>（用户名 + 姓名 + 密码），登录后才能预约。<br>" +
+    "2. 上方切换<b>制备 / 半制备</b>：两台设备各自独立预约。<br>" +
+    "3. 点空格子预约，可勾选<b>水相</b>（0.05%盐酸 / 0.1%甲酸 / 其它自填），另可补充备注。<br>" +
+    "4. 已被约的格子和过去时段不可约。<br>" +
+    "5. <b>取消</b>：可以在上方「我的预约」列表点「取消」，或点网格中自己的格子。";
+}
+
+function renderMine(){
+  var box = document.getElementById("mineList");
+  document.getElementById("mineNum").textContent = myBookings.length;
+
+  if (!session){
+    box.innerHTML = '<div class="empty">登录后，这里会列出你名下全部待用机时。</div>';
+    return;
+  }
+  if (!myBookings.length){
+    box.innerHTML = '<div class="empty">你名下暂无待用机时。在下面网格里点空格子即可预约。</div>';
+    return;
+  }
+
+  box.innerHTML = "";
+  myBookings.forEach(function(b){
+    var d = (b.day || "").slice(0, 10);
+    var row = document.createElement("div");
+    row.className = "mi" + (isPast(d, b.hour) ? " past" : "");
+
+    var info = document.createElement("div");
+    info.className = "mt2";
+    var t = document.createElement("div");
+    t.className = "md";
+    t.innerHTML = escapeHtml(dateCn(d) + "　" + slotCn(b.hour)) +
+      '<span class="dvt">' + escapeHtml(deviceName(b.device || "prep")) + '</span>';
+    info.appendChild(t);
+
+    var meta = [];
+    if (b.aqueous) meta.push("水相：" + b.aqueous);
+    if (b.note) meta.push(b.note);
+    if (meta.length){
+      var nt = document.createElement("div");
+      nt.className = "mn2";
+      nt.textContent = meta.join("　");
+      info.appendChild(nt);
+    }
+
+    var go = document.createElement("button");
+    go.className = "mgo";
+    go.textContent = "取消";
+    go.onclick = function(){
+      showCancel(d, b.hour,
+        { name: b.name, note: b.note || "", aqueous: b.aqueous || "" },
+        b.device);
+    };
+
+    row.appendChild(info);
+    row.appendChild(go);
+    box.appendChild(row);
+  });
+}
+
+function render(){
+  var todayStr = ymd(new Date());
+  var days = [];
+  for (var i = 0; i < 7; i++) days.push(addDays(weekStart, i));
+  var narrow = isNarrow();
+
+  document.getElementById("range").textContent =
+    (weekStart.getMonth()+1) + "月" + weekStart.getDate() + "日 – " +
+    (days[6].getMonth()+1) + "月" + days[6].getDate() + "日";
+
+  // 日期切换条（窄屏）：有预约的日子标一个点
+  var tabs = document.getElementById("dayTabs");
+  tabs.innerHTML = "";
+  days.forEach(function(d){
+    var s = ymd(d);
+    var has = false;
+    for (var h = DAY_START; h < DAY_END; h++) if (bookings[slotId(s, h)]) { has = true; break; }
+    var b = document.createElement("button");
+    b.className = "dt" + (s === activeDay ? " on" : "") + (s === todayStr ? " today" : "");
+    b.innerHTML =
+      '<span class="w">' + WEEKDAY_CN[d.getDay() === 0 ? 6 : d.getDay()-1] + '</span>' +
+      '<span class="d">' + (d.getMonth()+1) + "/" + d.getDate() +
+      (has ? '<i class="dot"></i>' : '') + '</span>';
+    b.onclick = function(){ activeDay = s; render(); };
+    tabs.appendChild(b);
+  });
+
+  // 网格
+  var grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  var corner = document.createElement("div");
+  corner.className = "hd corner";
+  grid.appendChild(corner);
+
+  days.forEach(function(d){
+    var s = ymd(d);
+    var h = document.createElement("div");
+    h.className = "hd" + (s === todayStr ? " today" : "");
+    h.innerHTML =
+      '<span class="w">' + WEEKDAY_CN[d.getDay() === 0 ? 6 : d.getDay()-1] + '</span>' +
+      '<span class="d">' + (d.getMonth()+1) + "/" + d.getDate() + '</span>';
+    grid.appendChild(h);
+  });
+
+  for (var hr = DAY_START; hr < DAY_END; hr++){
+    var tc = document.createElement("div");
+    tc.className = "timecell" + (narrow && ymd(days[0]) !== activeDay ? " hid" : "");
+    tc.textContent = pad(hr) + ":00";
+    grid.appendChild(tc);
+
+    days.forEach(function(d){
+      var s = ymd(d);
+      var id = slotId(s, hr);
+      var b = bookings[id];
+      var cell = document.createElement("div");
+      var cls = "cell ";
+
+      if (isPast(s, hr)) cls += "past";
+      else if (b) cls += (isMine(b) ? "mine" : "taken");
+      else cls += "free";
+
+      // 窄屏只显示选中的那一天（配合日期切换条）
+      if (narrow && s !== activeDay) cls += " hid";
+
+      cell.className = cls;
+      cell.dataset.id = id;
+
+      var tm = document.createElement("div");
+      tm.className = "tm";
+      tm.textContent = pad(hr) + ":00–" + pad(hr+1) + ":00";
+      cell.appendChild(tm);
+
+      if (b){
+        var nm = document.createElement("div");
+        nm.className = "nm";
+        nm.textContent = b.name;                 // 被预约的时段显示预约人姓名
+        cell.appendChild(nm);
+        // 格子里优先显示水相，没有水相才显示备注
+        var sub = b.aqueous || b.note;
+        if (sub){
+          var nt = document.createElement("div");
+          nt.className = "nt";
+          nt.textContent = sub;
+          cell.appendChild(nt);
+        }
+        if (!isPast(s, hr) && !isMine(b)){
+          var hue = hueOf(b.name);
+          cell.style.background = "hsl(" + hue + ",72%,95%)";
+          cell.style.color = "hsl(" + hue + ",45%,30%)";
+          if (sub) cell.querySelector(".nt").style.color = "hsl(" + hue + ",30%,45%)";
+        }
+      }
+
+      cell.onclick = function(){ onCellClick(s, hr); };
+      grid.appendChild(cell);
+    });
+  }
+}
+
+/* ============================================================
+   交互
+   ============================================================ */
+function closeModal(){
+  document.getElementById("mask").className = "mask";
+  document.getElementById("modal").innerHTML = "";
+}
+document.getElementById("mask").onclick = function(e){ if (e.target === this) closeModal(); };
+
+function onCellClick(dayStr, hour){
+  if (!dbReady){ toast("数据未就绪，请刷新页面重试", true); return; }
+
+  var b = bookings[slotId(dayStr, hour)];
+
+  if (b){
+    if (isMine(b)) showCancel(dayStr, hour, b);
+    else toast("该时段已被 " + b.name + " 预约", true);   // 别人的：点不动
+    return;
+  }
+
+  if (isPast(dayStr, hour)){ toast("该时段已开始，不能预约", true); return; }
+
+  if (!session){
+    toast("请先登录后再预约", true);
+    showAuth("login");
+    return;
+  }
+
+  showBook(dayStr, hour);
+}
+
+/* ---------- 注册 / 登录 ---------- */
+function showAuth(mode){
+  var isReg = mode === "register";
+  var modal = document.getElementById("modal");
+  modal.innerHTML =
+    '<h3>' + (isReg ? "注册账号" : "登录") + '</h3>' +
+    '<div class="when">' + (isReg
+        ? "用户名用于登录，姓名是显示在预约格子上的名字"
+        : "登录后才能预约和取消自己的时段") + '</div>' +
+    '<p class="fl">用户名（3–20 位，字母/数字/_ . -）</p>' +
+    '<input id="aUser" autocomplete="username" maxlength="20" placeholder="如 liming">' +
+    (isReg ? '<p class="fl">姓名（显示在格子上，1–12 字）</p>' +
+             '<input id="aName" maxlength="12" placeholder="如 李明">' : '') +
+    '<p class="fl">密码（至少 6 位）</p>' +
+    '<input id="aPass" type="password" autocomplete="' +
+      (isReg ? "new-password" : "current-password") + '" maxlength="64" placeholder="至少 6 位">' +
+    '<div class="err" id="aErr"></div>' +
+    '<div class="row">' +
+      '<button class="btn" id="aCancel">取消</button>' +
+      '<button class="btn primary" id="aOk">' + (isReg ? "注册并登录" : "登录") + '</button>' +
+    '</div>' +
+    '<div class="sw">' + (isReg
+        ? '已有账号？<a id="aSw">去登录</a>'
+        : '还没有账号？<a id="aSw">去注册</a>') + '</div>';
+
+  document.getElementById("mask").className = "mask on";
+  document.getElementById("aCancel").onclick = closeModal;
+  document.getElementById("aSw").onclick = function(){ showAuth(isReg ? "login" : "register"); };
+
+  var uEl = document.getElementById("aUser");
+  setTimeout(function(){ uEl.focus(); }, 60);
+
+  async function submit(){
+    var err = document.getElementById("aErr");
+    var u = (uEl.value || "").trim();
+    var p = (document.getElementById("aPass").value || "");
+    var dn = isReg ? (document.getElementById("aName").value || "").trim() : "";
+
+    if (!u){ err.textContent = "请填写用户名"; return; }
+    if (isReg && !dn){ err.textContent = "请填写姓名"; return; }
+    if (p.length < 6){ err.textContent = "密码至少 6 位"; return; }
+
+    var ok = document.getElementById("aOk");
+    ok.disabled = true;
+    ok.textContent = "处理中…";
+
+    try {
+      if (isReg){
+        var r = await rpc("register_user", {
+          p_username: u, p_password: p, p_display_name: dn
+        });
+        if (r !== "OK"){
+          ok.disabled = false; ok.textContent = "注册并登录";
+          err.textContent = {
+            EXISTS: "该用户名已被注册，换一个吧",
+            WEAK: "密码至少 6 位",
+            BAD_USERNAME: "用户名需 3–20 位，只能用字母/数字/_ . -",
+            BAD_NAME: "姓名需 1–12 个字"
+          }[r] || ("注册失败：" + r);
+          return;
+        }
+      }
+      // 注册成功后直接登录
+      var tok = await rpc("login_user", { p_username: u, p_password: p });
+      if (!tok || tok === "BAD"){
+        ok.disabled = false; ok.textContent = isReg ? "注册并登录" : "登录";
+        err.textContent = isReg ? "注册成功，请直接登录" : "用户名或密码不对";
+        return;
+      }
+
+      var me = await rpcJSON("me", { p_token: tok });
+      if (!me || !me.user_id){
+        ok.disabled = false; ok.textContent = "登录";
+        err.textContent = "登录失败，请重试";
+        return;
+      }
+
+      session = {
+        token: tok,
+        user_id: me.user_id,
+        username: me.username,
+        display_name: me.display_name
+      };
+      saveSession();
+      closeModal();
+      renderAuth();
+      toast("欢迎你，" + session.display_name);
+      await load();
+    } catch (e){
+      ok.disabled = false;
+      ok.textContent = isReg ? "注册并登录" : "登录";
+      err.textContent = e.message || "网络异常，请重试";
+    }
+  }
+
+  document.getElementById("aOk").onclick = submit;
+  modal.onkeydown = function(e){ if (e.key === "Enter") submit(); };
+}
+
+/* ---------- 预约 ---------- */
+function showBook(dayStr, hour){
+  if (!session){ showAuth("login"); return; }
+
+  var aqPick = "";   // 当前选中的水相；再点一次可取消
+  var modal = document.getElementById("modal");
+
+  modal.innerHTML =
+    '<h3>预约 · ' + escapeHtml(deviceName(currentDevice)) + '</h3>' +
+    '<div class="when">' + dateCn(dayStr) + '　' + slotCn(hour) + '</div>' +
+    '<div class="fixed"><span>' + escapeHtml(session.display_name) + '</span><span>预约人（本人）</span></div>' +
+    '<p class="fl">水相（选填）</p>' +
+    '<div class="opts" id="aqOpts"></div>' +
+    '<input id="aqOther" maxlength="40" placeholder="请填写具体的水相" style="display:none">' +
+    '<p class="fl" style="margin-top:10px">备注（选填）</p>' +
+    '<textarea id="mNote" rows="2" maxlength="40" placeholder="如：样品 A / 反相"></textarea>' +
+    '<div class="err" id="mErr"></div>' +
+    '<div class="row">' +
+      '<button class="btn" id="mCancel">取消</button>' +
+      '<button class="btn primary" id="mOk">确认预约</button>' +
+    '</div>';
+
+  document.getElementById("mask").className = "mask on";
+  document.getElementById("mCancel").onclick = closeModal;
+
+  var otherEl = document.getElementById("aqOther");
+
+  function renderAq(){
+    var box = document.getElementById("aqOpts");
+    box.innerHTML = "";
+    AQUEOUS_OPTIONS.forEach(function(v){
+      var b = document.createElement("button");
+      b.className = "opt" + (aqPick === v ? " on" : "");
+      b.textContent = v;
+      b.onclick = function(){ aqPick = (aqPick === v ? "" : v); renderAq(); };
+      box.appendChild(b);
+    });
+    otherEl.style.display = (aqPick === "其它") ? "block" : "none";
+    if (aqPick === "其它") otherEl.focus();
+  }
+  renderAq();
+
+  function aqValue(){
+    if (aqPick === "其它"){
+      var t = (otherEl.value || "").trim();
+      return t ? ("其它：" + t) : "";
+    }
+    return aqPick;
+  }
+
+  document.getElementById("mOk").onclick = async function(){
+    var ok = this;
+    var err = document.getElementById("mErr");
+    ok.disabled = true;
+    ok.textContent = "提交中…";
+    try {
+      var r = await rpc("book_slot", {
+        p_day: dayStr,
+        p_hour: hour,
+        p_session: session.token,
+        p_device: currentDevice,
+        p_note: (document.getElementById("mNote").value || "").trim(),
+        p_aqueous: aqValue()
+      });
+
+      if (r === "OK"){
+        closeModal();
+        toast("预约成功：" + dateCn(dayStr) + " " + slotCn(hour));
+        await load();
+      } else if (r === "TAKEN"){
+        ok.disabled = false; ok.textContent = "确认预约";
+        err.textContent = "手慢了，这个时段刚被别人约走";
+        await load();
+      } else if (r === "PAST"){
+        ok.disabled = false; ok.textContent = "确认预约";
+        err.textContent = "该时段已开始，不能预约";
+        await load();
+      } else if (r === "NO_AUTH"){
+        onAuthLost();
+      } else if (r === "BAD_DEVICE"){
+        ok.disabled = false; ok.textContent = "确认预约";
+        err.textContent = "设备参数有误，请刷新页面重试";
+      } else {
+        ok.disabled = false; ok.textContent = "确认预约";
+        err.textContent = "预约失败：" + r;
+      }
+    } catch (e){
+      ok.disabled = false; ok.textContent = "确认预约";
+      err.textContent = e.message;
+    }
+  };
+}
+
+/* ---------- 取消 ---------- */
+function showCancel(dayStr, hour, b, device){
+  if (!session){ showAuth("login"); return; }
+
+  var dev = device || currentDevice;
+  var meta = [];
+  if (b.aqueous) meta.push("水相：" + b.aqueous);
+  if (b.note) meta.push(b.note);
+
+  var modal = document.getElementById("modal");
+  modal.innerHTML =
+    '<h3>取消预约 · ' + escapeHtml(deviceName(dev)) + '</h3>' +
+    '<div class="when">' + dateCn(dayStr) + '　' + slotCn(hour) + '</div>' +
+    '<div class="fixed"><span>' + escapeHtml(b.name) + '</span><span>预约人</span></div>' +
+    (meta.length ? '<p class="fl">' + escapeHtml(meta.join("　")) + '</p>' : '') +
+    '<p class="fl" style="margin-top:4px">取消后该时段会立即释放，其他人可以预约。</p>' +
+    '<div class="err" id="mErr"></div>' +
+    '<div class="row">' +
+      '<button class="btn" id="mBack">返回</button>' +
+      '<button class="btn primary" id="mOk" style="background:#dc2626;border-color:#dc2626">确认取消</button>' +
+    '</div>';
+
+  document.getElementById("mask").className = "mask on";
+  document.getElementById("mBack").onclick = closeModal;
+
+  document.getElementById("mOk").onclick = async function(){
+    var ok = this;
+    ok.disabled = true;
+    ok.textContent = "处理中…";
+    try {
+      var r = await rpc("cancel_slot", {
+        p_id: slotIdOf(dayStr, hour, dev),
+        p_session: session.token
+      });
+      if (r === "OK"){
+        closeModal();
+        toast("已取消：" + dateCn(dayStr) + " " + slotCn(hour));
+        await load();
+      } else if (r === "NOT_OWNER"){
+        ok.disabled = false; ok.textContent = "确认取消";
+        document.getElementById("mErr").textContent = "这个时段不是你预约的，无法取消";
+        await load();
+      } else if (r === "NO_AUTH"){
+        onAuthLost();
+      } else {
+        ok.disabled = false; ok.textContent = "确认取消";
+        document.getElementById("mErr").textContent = "取消失败：" + r;
+      }
+    } catch (e){
+      ok.disabled = false; ok.textContent = "确认取消";
+      document.getElementById("mErr").textContent = e.message;
+    }
+  };
+}
+
+/* ============================================================
+   复制 / 导出
+   ============================================================ */
+function weekText(){
+  var lines = ["制备/半制备系统预约 · " + deviceName(currentDevice) + " · " +
+    (weekStart.getMonth()+1) + "月" + weekStart.getDate() + "日–" +
+    (addDays(weekStart, 6).getMonth()+1) + "月" + addDays(weekStart, 6).getDate() + "日"];
+  for (var i = 0; i < 7; i++){
+    var d = addDays(weekStart, i), s = ymd(d), w = d.getDay();
+    var arr = [];
+    for (var hr = DAY_START; hr < DAY_END; hr++){
+      var b = bookings[slotId(s, hr)];
+      if (b) arr.push(pad(hr) + ":00 " + b.name + (b.note ? "（" + b.note + "）" : ""));
+    }
+    lines.push("【" + (d.getMonth()+1) + "/" + d.getDate() + " " + WEEKDAY_CN[w === 0 ? 6 : w-1] + "】" +
+      (arr.length ? arr.join("；") : "（暂无预约）"));
+  }
+  return lines.join("\n");
+}
+
+async function copyText(t, okMsg){
+  try {
+    if (navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(t);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = t;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    toast(okMsg);
+  } catch (e){
+    toast("复制失败，请长按手动选择", true);
+  }
+}
+
+/* ============================================================
+   演示模式（不读写数据库）
+   ============================================================ */
+var demoData = {};        // id -> {name, note, user_id}
+var demoUsers = {};       // username -> {pw, display, uid}
+var demoSessions = {};    // token -> username
+
+function seedDemo(){
+  demoUsers = {
+    "liming":   { pw: "123456", display: "李明", uid: "u-1" },
+    "wangfang": { pw: "123456", display: "王芳", uid: "u-2" }
+  };
+  demoSessions = {};
+  demoData = {};
+
+  var mon = weekStart;
+  function put(off, hr, dev, uname, aqueous, note){
+    var u = demoUsers[uname];
+    demoData[slotIdOf(ymd(addDays(mon, off)), hr, dev)] = {
+      name: u.display, note: note || "", user_id: u.uid, aqueous: aqueous || ""
+    };
+  }
+
+  // 制备
+  put(0,  9, "prep", "liming",   "0.05%盐酸",         "样品 A");
+  put(0, 14, "prep", "wangfang", "0.1%甲酸",          "");
+  put(1, 10, "prep", "liming",   "其它：10mM 醋酸铵", "");
+  put(2, 15, "prep", "wangfang", "",                  "需要连续 2 小时");
+  put(2, 16, "prep", "wangfang", "",                  "");
+
+  // 半制备：9/7 9:00 与制备同一时段，但归属不同的人 → 两台设备互不干扰
+  put(0,  9, "semi", "wangfang", "0.1%甲酸",   "半制备 · 样品 B");
+  put(0, 10, "semi", "liming",   "0.05%盐酸",  "");
+  put(3, 14, "semi", "wangfang", "",           "");
+  put(5, 20, "semi", "liming",   "其它：纯水", "");
+}
+
+function demoAutoLogin(){
+  var tok = "demo-sess-1";
+  demoSessions[tok] = "liming";
+  session = { token: tok, user_id: "u-1", username: "liming", display_name: "李明" };
+}
+
+function demoUserOf(token){
+  var un = demoSessions[token];
+  return un ? demoUsers[un] : null;
+}
+
+function demoRpc(fn, p){
+  return new Promise(function(resolve){
+    setTimeout(function(){
+      if (fn === "register_user"){
+        var u = String(p.p_username || "").toLowerCase().trim();
+        var d = String(p.p_display_name || "").trim();
+        var pw = String(p.p_password || "");
+        if (u.length < 3 || u.length > 20) return resolve("BAD_USERNAME");
+        if (!/^[a-z0-9_.-]+$/.test(u)) return resolve("BAD_USERNAME");
+        if (!d || d.length > 12) return resolve("BAD_NAME");
+        if (pw.length < 6) return resolve("WEAK");
+        if (demoUsers[u]) return resolve("EXISTS");
+        demoUsers[u] = { pw: pw, display: d, uid: "u-" + u };
+        return resolve("OK");
+      }
+      if (fn === "login_user"){
+        var u2 = String(p.p_username || "").toLowerCase().trim();
+        var rec = demoUsers[u2];
+        if (!rec || rec.pw !== String(p.p_password || "")) return resolve("BAD");
+        var t = "demo-sess-" + Math.random().toString(36).slice(2, 10);
+        demoSessions[t] = u2;
+        return resolve(t);
+      }
+      if (fn === "me"){
+        var rec2 = demoUserOf(p.p_token);
+        if (!rec2) return resolve(null);
+        var un2 = demoSessions[p.p_token];
+        return resolve({ user_id: rec2.uid, username: un2, display_name: rec2.display });
+      }
+      if (fn === "logout"){
+        delete demoSessions[p.p_token];
+        return resolve(null);
+      }
+      if (fn === "my_bookings"){
+        var rec3 = demoUserOf(p.p_session);
+        if (!rec3) return resolve(null);
+        var today = ymd(new Date());
+        var arr = Object.keys(demoData)
+          .filter(function(id){
+            return demoData[id].user_id === rec3.uid && id.slice(0, 10) >= today;
+          })
+          .map(function(id){
+            return {
+              day: id.slice(0, 10),
+              hour: hourOf(id),
+              device: deviceOf(id),
+              name: demoData[id].name,
+              note: demoData[id].note,
+              aqueous: demoData[id].aqueous || ""
+            };
+          })
+          .sort(function(a, b){ return a.day < b.day ? -1 : (a.day > b.day ? 1 : a.hour - b.hour); });
+        return resolve(arr);
+      }
+      if (fn === "book_slot"){
+        var rec4 = demoUserOf(p.p_session);
+        if (!rec4) return resolve("NO_AUTH");
+        if (p.p_device !== "prep" && p.p_device !== "semi") return resolve("BAD_DEVICE");
+        if (p.p_hour < 8 || p.p_hour > 21) return resolve("OUT_OF_RANGE");
+        // 主键含设备：同设备同时段互斥，另一台设备不受影响
+        var id = slotIdOf(p.p_day, p.p_hour, p.p_device);
+        if (demoData[id]) return resolve("TAKEN");
+        var end = parseYmd(p.p_day);
+        end.setHours(p.p_hour + 1, 0, 0, 0);
+        if (end.getTime() <= Date.now()) return resolve("PAST");
+        demoData[id] = {
+          name: rec4.display, note: p.p_note || "",
+          aqueous: p.p_aqueous || "", user_id: rec4.uid
+        };
+        return resolve("OK");
+      }
+      // 与数据库一致：只能取消自己名下的（按 user_id，不按姓名）
+      if (fn === "cancel_slot"){
+        var rec5 = demoUserOf(p.p_session);
+        if (!rec5) return resolve("NO_AUTH");
+        var b = demoData[p.p_id];
+        if (!b || b.user_id !== rec5.uid) return resolve("NOT_OWNER");
+        delete demoData[p.p_id];
+        return resolve("OK");
+      }
+      resolve("OK");
+    }, 260);
+  });
+}
+
+/* ============================================================
+   事件绑定与启动
+   ============================================================ */
+document.getElementById("prevWeek").onclick = function(){ weekStart = addDays(weekStart, -7); load(); };
+document.getElementById("nextWeek").onclick = function(){ weekStart = addDays(weekStart, 7); load(); };
+document.getElementById("thisWeek").onclick = function(){ weekStart = mondayOf(new Date()); load(); };
+document.getElementById("refresh").onclick = function(){ load(); loadMine(); toast("已刷新"); };
+document.getElementById("mineRefresh").onclick = function(){ loadMine(); toast("已刷新我的预约"); };
+document.getElementById("copyWeek").onclick = function(){ copyText(weekText(), "排班已复制，可直接粘贴到群里"); };
+document.getElementById("copyLink").onclick = function(){
+  copyText(location.origin + location.pathname + "?week=" + ymd(weekStart), "链接已复制");
+};
+
+// 窗口宽度跨过 820px 时重绘（切换单日/整周视图）
+if (window.matchMedia){
+  var mq = window.matchMedia("(max-width: 820px)");
+  var onMq = function(){ render(); };
+  if (mq.addEventListener) mq.addEventListener("change", onMq);
+  else if (mq.addListener) mq.addListener(onMq);
+}
+
+(async function boot(){
+  initWeek();
+  initDevice();
+
+  if (DEMO){
+    seedDemo();
+    demoAutoLogin();
+    document.getElementById("demoBar").style.display = "block";
+    document.getElementById("demoBar").innerHTML =
+      "<b>演示模式</b>　数据存在本机内存里，刷新即恢复，预约和取消都不会真正保存。" +
+      "当前已用 <b>李明（liming / 123456）</b> 登录，可切换设备 Tab 看两台设备各自的排班。" +
+      "去掉地址里的 <code>?demo=1</code> 就是真实数据。";
+  } else {
+    await restoreSession();
+  }
+
+  renderAuth();
+  renderDevices();
+  load();
+})();
+
+setInterval(function(){
+  if (!document.hidden && !document.getElementById("mask").className.includes("on")) load();
+}, 15000);
+
+document.addEventListener("visibilitychange", function(){ if (!document.hidden) load(); });
+</script>
+</body>
+</html>
