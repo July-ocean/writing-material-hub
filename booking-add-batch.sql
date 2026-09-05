@@ -30,6 +30,7 @@ declare
   v_hour      int;
   v_conflicts text[] := '{}';
   v_ok        int := 0;
+  v_limit     date;   -- 第一个不可预约的日期：北京时间今天 + 6 天
 begin
   -- 身份
   select user_id into v_uid
@@ -57,6 +58,9 @@ begin
     return json_build_object('code', 'TOO_MANY');
   end if;
 
+  -- 最晚可约到北京时间今天 + 5 天（含），每天零点后移一天
+  v_limit := (now() at time zone 'Asia/Shanghai')::date + 6;
+
   -- 先全部检查：有任何一个不可用 → 整体拒绝，一个都不插
   for v_item in select * from jsonb_array_elements(p_hours) loop
     v_day  := (v_item ->> 'day')::date;
@@ -64,6 +68,8 @@ begin
 
     if v_hour is null or v_hour < 8 or v_hour > 21 then
       v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || coalesce(v_hour::text, '?') || ':00 时段无效');
+    elsif v_day >= v_limit then
+      v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || v_hour || ':00 尚未开放');
     elsif (v_day + v_hour * interval '1 hour') < (now() at time zone 'Asia/Shanghai') then
       v_conflicts := v_conflicts || (to_char(v_day, 'MM-DD') || ' ' || v_hour || ':00 已过期');
     elsif exists (

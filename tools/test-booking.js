@@ -5,6 +5,12 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+// 固定北京时间周六早晨，避免周末夜间测试找不到足够的未来时段。
+let nowMs = Date.parse("2026-09-05T08:00:00+08:00");
+class TestDate extends Date {
+  constructor(...args) { super(...(args.length ? args : [nowMs])); }
+  static now() { return nowMs; }
+}
 
 const html = fs.readFileSync(path.join(__dirname, "..", "docs", "booking", "index.html"), "utf8");
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
@@ -82,7 +88,7 @@ const sandbox = {
   fetch() { throw new Error("测试里不应发起真实 fetch"); },
   URLSearchParams,
   Promise,
-  Date,
+  Date: TestDate,
   Math,
   JSON,
   RegExp,
@@ -133,9 +139,10 @@ function ymdLocal(d) {
       for (let h = 8; h <= 21 && out.length < n; h++) {
         const id = day + "#" + (h < 10 ? "0" + h : h) + "#" + device;
         if (ctx.demoData[id]) continue;
+        if (ctx.isFar(day)) continue;
         const end = new Date(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10));
         end.setHours(h + 1, 0, 0, 0);
-        if (end.getTime() <= Date.now()) continue;
+        if (end.getTime() <= TestDate.now()) continue;
         out.push({ day, hour: h, id });
       }
     }
@@ -160,7 +167,7 @@ function ymdLocal(d) {
   eq(r.code, "TOO_MANY", "9 段 → TOO_MANY");
 
   // 冲突混合：过期 + 时段无效 + 正常
-  const yesterday = ymdLocal(new Date(Date.now() - 86400000));
+  const yesterday = ymdLocal(new Date(TestDate.now() - 86400000));
   r = await ctx.demoRpc("book_slots", {
     p_session: ctx.session.token, p_device: "prep",
     p_hours: [
@@ -272,7 +279,7 @@ function ymdLocal(d) {
     const parts = c.dataset.id.split("#");
     const end = new Date(+parts[0].slice(0, 4), +parts[0].slice(5, 7) - 1, +parts[0].slice(8, 10));
     end.setHours(parseInt(parts[1], 10) + 1, 0, 0, 0);
-    return end.getTime() > Date.now() && !ctx.demoData[c.dataset.id];
+    return end.getTime() > TestDate.now() && !ctx.demoData[c.dataset.id];
   });
   ok(!!futureCell, "找到未来空闲格子做真实点击");
   futureCell.onclick();
@@ -299,20 +306,19 @@ function ymdLocal(d) {
   ok(ctx.demoData[final2[0].id] && ctx.demoData[final2[1].id], "两段都写入 demoData");
   eq(ctx.demoData[final2[0].id].user_id, "u-1", "归属本人");
 
-  /* ---------- 预约时间上限（最多约到下周） ---------- */
-  console.log("\n[预约上限：只能约到下周]");
-  const nowMon = ctx.mondayOf(new Date());
-  const farDay = ctx.ymd(ctx.addDays(nowMon, 15));         // 下下周周二，必超上限
-  const nextMon = ctx.ymd(ctx.addDays(nowMon, 7));         // 下周周一（允许）
-
-  ok(ctx.isFar(farDay) === true, "下下周 isFar = true");
-  ok(ctx.isFar(nextMon) === false, "下周周一仍可约");
-  ok(ctx.isFar(ctx.ymd(ctx.addDays(nowMon, 13))) === false, "下周日（最后可约日）仍可约");
-  ok(ctx.isFar(ctx.ymd(ctx.addDays(nowMon, 14))) === true, "下下周一（第一个不可约日）isFar = true");
+  /* ---------- 预约时间上限（最多约到 5 天后） ---------- */
+  console.log("\n[预约上限：最晚可约到 5 天后]");
+  const nowMon = ctx.mondayOf(ctx.bookingToday());
+  const farDay = "2026-09-11";
+  eq(ctx.lastBookableStr(), "2026-09-10", "9 月 5 日最晚可约到 9 月 10 日");
+  ok(ctx.isFar("2026-09-10") === false, "第 5 天可预约");
+  ok(ctx.isFar(farDay) === true, "第 6 天不可预约");
+  eq(ctx.ymd(ctx.maxWeekStart()), "2026-09-07", "导航允许到最后可约日期所在周");
+  ok(/9月10日.*22:00/.test(documentStub.getElementById("bookingLimit").textContent), "页面显示具体可约截止日期");
 
   // 点超限格子：拒绝 + 提示
   ctx.onCellClick(farDay, 10);
-  eq(Object.keys(ctx.selected).length, 0, "点下下周格子不进入选中");
+  eq(Object.keys(ctx.selected).length, 0, "点第 6 天格子不进入选中");
   ok(/只能约到|还没开放/.test(toastEl.textContent), "超限提示 toast（" + toastEl.textContent + "）");
 
   // demoRpc book_slot / book_slots 复刻数据库拦截
@@ -320,17 +326,31 @@ function ymdLocal(d) {
     p_session: ctx.session.token, p_device: "prep",
     p_day: farDay, p_hour: 10, p_note: "", p_aqueous: "",
   });
-  eq(r, "TOO_FAR", "book_slot 下下周 → TOO_FAR");
+  eq(r, "TOO_FAR", "book_slot 第 6 天 → TOO_FAR");
+
+  r = await ctx.demoRpc("book_slot", {
+    p_session: ctx.session.token, p_device: "prep",
+    p_day: "2026-09-10", p_hour: 21, p_note: "", p_aqueous: "",
+  });
+  eq(r, "OK", "第 5 天最后一段 21:00–22:00 仍可预约");
 
   r = await ctx.demoRpc("book_slots", {
     p_session: ctx.session.token, p_device: "prep",
-    p_hours: [{ day: farDay, hour: 10 }, { day: final2[0].day, hour: final2[0].hour }],
+    p_hours: [{ day: farDay, hour: 10 }, { day: "2026-09-10", hour: 20 }],
     p_note: "", p_aqueous: "",
   });
-  eq(r.code, "CONFLICT", "批量含下下周 → CONFLICT");
+  eq(r.code, "CONFLICT", "批量含第 6 天 → CONFLICT");
   ok(/尚未开放/.test(r.list.join("")), "冲突文案含「尚未开放」");
+  ok(!ctx.demoData["2026-09-10#20#prep"], "包含超限时段时，窗口内时段也不写入");
 
-  // 周导航：翻到下周后「下一周」禁用；回到本周恢复
+  r = await ctx.demoRpc("book_slots", {
+    p_session: ctx.session.token, p_device: "semi",
+    p_hours: [{ day: "2026-09-10", hour: 20 }, { day: "2026-09-10", hour: 21 }],
+    p_note: "", p_aqueous: "",
+  });
+  eq(r.code, "OK", "第 5 天最后两个时段可以批量预约");
+
+  // 周导航：翻到最后可约周后禁用
   ctx.selected = {};
   ctx.weekStart = ctx.maxWeekStart();
   ctx.render();
@@ -339,11 +359,45 @@ function ymdLocal(d) {
   ctx.render();
   ok(documentStub.getElementById("nextWeek").disabled === false, "本周时「下一周」可用");
 
-  // ?week= 参数超限时自动钳制到下周
+  // ?week= 参数超限时自动钳制到最后可约周
   const oldSearch = ctx.location.search;
   ctx.location.search = "?demo=1&week=2027-01-04";
   ctx.initWeek();
-  eq(ctx.ymd(ctx.weekStart), ctx.ymd(ctx.maxWeekStart()), "?week= 超限自动钳制到下周");
+  eq(ctx.ymd(ctx.weekStart), ctx.ymd(ctx.maxWeekStart()), "?week= 超限自动钳制到最后可约周");
+
+  // 缩短窗口之前的预约仍按已预约显示，并可进入取消流程。
+  const existingId = farDay + "#10#prep";
+  ctx.bookings[existingId] = { name: "李明", user_id: ctx.session.user_id };
+  ctx.render();
+  const existingCell = gridEl.children.find((c) => c.dataset.id === existingId);
+  ok(existingCell && /mine/.test(existingCell.className) && !/far/.test(existingCell.className), "窗口外已有预约保留「我的预约」样式");
+  existingCell.onclick();
+  ok(/取消预约/.test(documentStub.getElementById("modal").innerHTML), "窗口外已有预约仍可进入取消窗口");
+  ctx.closeModal();
+  delete ctx.bookings[existingId];
+
+  // 按北京时间跨零点、跨月、跨年，以及窗口不跨周时的导航。
+  const boundaries = [
+    ["2026-09-05T15:59:59Z", "2026-09-05", "2026-09-10", "2026-09-07"],
+    ["2026-09-05T16:00:00Z", "2026-09-06", "2026-09-11", "2026-09-07"],
+    ["2026-09-07T00:00:00+08:00", "2026-09-07", "2026-09-12", "2026-09-07"],
+    ["2026-09-08T00:00:00+08:00", "2026-09-08", "2026-09-13", "2026-09-07"],
+    ["2026-09-28T08:00:00+08:00", "2026-09-28", "2026-10-03", "2026-09-28"],
+    ["2026-12-29T08:00:00+08:00", "2026-12-29", "2027-01-03", "2026-12-28"],
+  ];
+  for (const [instant, today, last, maxWeek] of boundaries) {
+    nowMs = Date.parse(instant);
+    eq(ctx.ymd(ctx.bookingToday()), today, instant + " 对应北京时间日期");
+    eq(ctx.lastBookableStr(), last, today + " 的第 5 天");
+    eq(ctx.ymd(ctx.maxWeekStart()), maxWeek, today + " 的导航上限");
+    ctx.location.search = "?demo=1";
+    ctx.initWeek();
+    eq(ctx.ymd(ctx.weekStart), ctx.ymd(ctx.mondayOf(ctx.parseYmd(today))), "默认仍显示本周");
+    ctx.render();
+    eq(documentStub.getElementById("nextWeek").disabled,
+       ctx.ymd(ctx.weekStart) === maxWeek, "本周是否还能翻页与 5 天窗口一致");
+  }
+  nowMs = Date.parse("2026-09-05T08:00:00+08:00");
   ctx.location.search = oldSearch;
   ctx.initWeek();
   ctx.load();

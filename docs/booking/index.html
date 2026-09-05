@@ -164,7 +164,7 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
 .cell.past .nm{color:#b3bac6;font-weight:400}
 .cell.past .nt{color:#c4cad4}
 .cell.hid{display:none}
-/* 超出预约上限（下下周及以后）：还没开放 */
+/* 超出预约上限（今天 + 6 天及以后）：还没开放 */
 .cell.far{background:#f6f7f9;cursor:not-allowed}
 .cell.far .tm{color:#c4cad4}
 .cell.far::after{
@@ -285,6 +285,7 @@ button{font-family:inherit;font-size:14px;cursor:pointer;border:none;background:
       <button class="btn ghost" id="thisWeek">本周</button>
       <button class="btn ghost" id="refresh">刷新</button>
     </div>
+    <p class="sub" id="bookingLimit"></p>
   </header>
 
   <div class="devtabs" id="devTabs"></div>
@@ -341,6 +342,7 @@ var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 var DAY_START = 8;
 var DAY_END   = 22;             // 最后时段 21:00-22:00
+var BOOK_AHEAD_DAYS = 5;        // 最晚可约北京时间今天 + 5 天（含整天）
 var WEEKDAY_CN = ["周一","周二","周三","周四","周五","周六","周日"];
 
 // 两台设备，各自独立预约
@@ -370,6 +372,11 @@ function pad(n){ return n < 10 ? "0" + n : "" + n; }
 function ymd(d){ return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
 function parseYmd(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function addDays(d, n){ var x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
+function bookingToday(){
+  // 取北京时间的日历日期，与数据库一致，不受访问者所在时区影响。
+  var d = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
 function mondayOf(d){
   var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   var w = x.getDay();
@@ -417,11 +424,11 @@ var selected = {};          // 多选的时段 id -> {day, hour}，仅当前设�
 function initWeek(){
   var q = new URLSearchParams(location.search).get("week");
   // 默认当前周；链接里带 ?week=YYYY-MM-DD 才跳到指定周
-  var base = (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) ? parseYmd(q) : new Date();
+  var base = (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) ? parseYmd(q) : bookingToday();
   weekStart = mondayOf(base);
-  // 上限：再往后翻没意义（下下周及以后还不能约），钳到下周
+  // 超出范围的链接，钳到最后可预约日期所在周。
   if (ymd(weekStart) > ymd(maxWeekStart())) weekStart = maxWeekStart();
-  var ts = ymd(new Date());
+  var ts = ymd(bookingToday());
   activeDay = (ymd(weekStart) <= ts && ts <= ymd(addDays(weekStart, 6))) ? ts : ymd(weekStart);
 }
 
@@ -440,17 +447,17 @@ function isPast(dayStr, hour){
   return end.getTime() <= Date.now();
 }
 
-/* ---- 预约时间上限：只能约到下周（下周日），下下周一开始不开放 ---- */
-// 第一个不可预约的日期（下下周周一），'YYYY-MM-DD'
-function farLimitStr(){ return ymd(addDays(mondayOf(new Date()), 14)); }
-// 可预约的最后一天（下周日），用于提示文案
-function lastBookableStr(){ return ymd(addDays(mondayOf(new Date()), 13)); }
-// 周导航能到的最后一周围一（下周一）
-function maxWeekStart(){ return addDays(mondayOf(new Date()), 7); }
+/* ---- 预约时间上限：北京时间今天 + 5 天（含），每天零点后移一天 ---- */
+// 第一个不可预约的日期（今天 + 6 天），'YYYY-MM-DD'
+function farLimitStr(){ return ymd(addDays(bookingToday(), BOOK_AHEAD_DAYS + 1)); }
+// 可预约的最后一天（今天 + 5 天），用于提示文案
+function lastBookableStr(){ return ymd(addDays(bookingToday(), BOOK_AHEAD_DAYS)); }
+// 周导航能到最后可预约日期所在周
+function maxWeekStart(){ return mondayOf(parseYmd(lastBookableStr())); }
 function isFar(dayStr){ return dayStr >= farLimitStr(); }   // ISO 日期可直接按字典序比
 function farHint(){
   var d = parseYmd(lastBookableStr());
-  return "现在只能约到 " + (d.getMonth()+1) + "月" + d.getDate() + "日（下周日），" +
+  return "现在只能约到 " + (d.getMonth()+1) + "月" + d.getDate() + "日（5 天后），" +
          "再往后的时段还没开放";
 }
 function isMine(b){ return !!(session && b && b.user_id && b.user_id === session.user_id); }
@@ -703,7 +710,7 @@ function renderTip(){
     "1. 先<b>注册账号</b>（用户名 + 姓名 + 密码），登录后才能预约。<br>" +
     "2. 上方切换<b>制备 / 半制备</b>：两台设备各自独立预约。<br>" +
     "3. 点空格子<b>可多选</b>（一次最多 8 段），点底部「确认预约」后统一填<b>水相</b>（0.05%盐酸 / 0.1%甲酸 / 其它）和备注。<br>" +
-    "4. 已被约的格子和过去时段不可约。<br>" +
+    "4. 最晚可约到 5 天后，每天北京时间零点开放新一天；已被约的格子和过去时段不可约。<br>" +
     "5. <b>取消</b>：可以在上方「我的预约」列表点「取消」，或点网格中自己的格子取消。";
 }
 
@@ -760,7 +767,7 @@ function renderMine(){
 }
 
 function render(){
-  var todayStr = ymd(new Date());
+  var todayStr = ymd(bookingToday());
   var days = [];
   for (var i = 0; i < 7; i++) days.push(addDays(weekStart, i));
   var narrow = isNarrow();
@@ -774,6 +781,8 @@ function render(){
   document.getElementById("range").textContent =
     (weekStart.getMonth()+1) + "月" + weekStart.getDate() + "日 – " +
     (days[6].getMonth()+1) + "月" + days[6].getDate() + "日";
+  document.getElementById("bookingLimit").textContent =
+    "最晚可约到 " + dateCn(lastBookableStr()) + " 22:00（5 天后） · 每天北京时间零点开放新一天";
 
   // 日期切换条（窄屏）：有预约的日子标一个点
   var tabs = document.getElementById("dayTabs");
@@ -823,9 +832,9 @@ function render(){
       var cell = document.createElement("div");
       var cls = "cell ";
 
-      if (isFar(s)) cls += "far";                 // 还没开放（下下周及以后）
-      else if (isPast(s, hr)) cls += "past";
+      if (isPast(s, hr)) cls += "past";
       else if (b) cls += (isMine(b) ? "mine" : "taken");
+      else if (isFar(s)) cls += "far";             // 超出 5 天窗口的空闲时段还没开放
       else cls += "free";
 
       if (selected[id] && cls === "cell free") cls += " sel";
@@ -870,7 +879,7 @@ function render(){
     });
   }
 
-  // 翻到下周就到头了：下下周及以后不开放
+  // 翻到最后可预约日期所在周后停止继续向后翻页
   document.getElementById("nextWeek").disabled = (ymd(weekStart) >= ymd(maxWeekStart()));
 
   renderSelBar();
@@ -905,7 +914,7 @@ function onCellClick(dayStr, hour){
 
   if (isPast(dayStr, hour)){ toast("该时段已开始，不能预约", true); return; }
 
-  if (isFar(dayStr)){ toast(farHint(), true); return; }   // 最多约到下周
+  if (isFar(dayStr)){ toast(farHint(), true); return; }   // 最多约到 5 天后
 
   if (!session){
     toast("请先登录后再预约", true);
@@ -1337,7 +1346,7 @@ function demoRpc(fn, p){
         if (!rec4) return resolve("NO_AUTH");
         if (p.p_device !== "prep" && p.p_device !== "semi") return resolve("BAD_DEVICE");
         if (p.p_hour < 8 || p.p_hour > 21) return resolve("OUT_OF_RANGE");
-        if (isFar(p.p_day)) return resolve("TOO_FAR");   // 与数据库一致：最多约到下周
+        if (isFar(p.p_day)) return resolve("TOO_FAR");   // 与数据库一致：最多约到 5 天后
         // 主键含设备：同设备同时段互斥，另一台设备不受影响
         var id = slotIdOf(p.p_day, p.p_hour, p.p_device);
         if (demoData[id]) return resolve("TAKEN");
@@ -1413,7 +1422,7 @@ document.getElementById("nextWeek").onclick = function(){
   weekStart = addDays(weekStart, 7);
   load();
 };
-document.getElementById("thisWeek").onclick = function(){ selected = {}; weekStart = mondayOf(new Date()); load(); };
+document.getElementById("thisWeek").onclick = function(){ selected = {}; weekStart = mondayOf(bookingToday()); load(); };
 document.getElementById("refresh").onclick = function(){ load(); loadMine(); toast("已刷新"); };
 document.getElementById("mineRefresh").onclick = function(){ loadMine(); toast("已刷新我的预约"); };
 document.getElementById("selClear").onclick = function(){ selected = {}; render(); };

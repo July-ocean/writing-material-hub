@@ -1,15 +1,18 @@
 -- ============================================================
 -- 预约时间上限（增量脚本，老库单独跑这一个文件即可）
 --
--- 作用：只能预约到下周（下周日），下下周一及以后不开放。
+-- 作用：最晚可约到北京时间今天 + 5 天（含整天），第 6 天起不开放。
 --       前端只是限制翻页和点选，真正的拦截在数据库这两个函数里——
---       就算有人绕过页面直接调接口，也约不进下下周。
+--       就算有人绕过页面直接调接口，也不能超出 5 天窗口。
 --
--- 判定：date_trunc('week', 北京时间) 取本周周一，+14 天 = 下下周一（第一个不可约日）
+-- 判定：北京时间今天 + 6 天 = 第一个不可约日，每天零点后移一天。
+-- 例：9 月 5 日可约到 9 月 10 日 22:00；9 月 11 日及以后不开放。
 --
 -- 前提：已经跑过 booking-schema.sql
 -- 影响：只替换 book_slot / book_slots 两个函数，不动任何数据，可重复执行
 -- ============================================================
+
+begin;
 
 create or replace function public.book_slot(
   p_day     date,
@@ -26,7 +29,7 @@ as $$
 declare
   v_uid   uuid;
   v_name  text;
-  v_limit date;   -- 第一个不可预约的日期：下下周一
+  v_limit date;   -- 第一个不可预约的日期：北京时间今天 + 6 天
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -49,8 +52,8 @@ begin
     return 'OUT_OF_RANGE';
   end if;
 
-  -- 预约窗口上限：只能约到下周
-  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+  -- 预约窗口上限：北京时间今天 + 5 天（含）
+  v_limit := (now() at time zone 'Asia/Shanghai')::date + 6;
   if p_day >= v_limit then
     return 'TOO_FAR';
   end if;
@@ -96,7 +99,7 @@ declare
   v_hour      int;
   v_conflicts text[] := '{}';
   v_ok        int := 0;
-  v_limit     date;   -- 第一个不可预约的日期：下下周一
+  v_limit     date;   -- 第一个不可预约的日期：北京时间今天 + 6 天
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -121,8 +124,8 @@ begin
     return json_build_object('code', 'TOO_MANY');
   end if;
 
-  -- 预约窗口上限：只能约到下周
-  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+  -- 预约窗口上限：北京时间今天 + 5 天（含）
+  v_limit := (now() at time zone 'Asia/Shanghai')::date + 6;
 
   -- 先全部检查：任何一个不可用 → 整体拒绝，一个都不插
   for v_item in select * from jsonb_array_elements(p_hours) loop
@@ -178,9 +181,11 @@ grant execute on function public.book_slot(date, int, text, text, text, text) to
 revoke all on function public.book_slots(text, text, jsonb, text, text) from public;
 grant execute on function public.book_slots(text, text, jsonb, text, text) to anon, authenticated;
 
+commit;
+
 -- ============================================================
 -- 验证（可选，跑完看一眼）：
---   select proname, prosrc like '%v_limit%' as 已生效
+--   select proname, prosrc like '%::date + 6;%' as 五天窗口已生效
 --     from pg_proc where proname in ('book_slot','book_slots') order by proname;
 -- 两行都返回 t 即说明替换成功。
 -- ============================================================

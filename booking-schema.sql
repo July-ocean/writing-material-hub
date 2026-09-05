@@ -238,7 +238,7 @@ $$;
 --    p_device : 'prep' 制备 / 'semi' 半制备
 --    p_aqueous: 水相，可为空；选「其它」时前端传 '其它：xxx'
 --    返回 OK / TAKEN / PAST / TOO_FAR / OUT_OF_RANGE / BAD_DEVICE / NO_AUTH
---    TOO_FAR：超出预约窗口（只能约到下周，下下周一起不开放）
+--    TOO_FAR：超出预约窗口（北京时间今天 + 5 天，含整天）
 -- ============================================================
 create or replace function public.book_slot(
   p_day     date,
@@ -255,7 +255,7 @@ as $$
 declare
   v_uid   uuid;
   v_name  text;
-  v_limit date;   -- 第一个不可预约的日期：下下周一
+  v_limit date;   -- 第一个不可预约的日期：北京时间今天 + 6 天
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -278,8 +278,8 @@ begin
     return 'OUT_OF_RANGE';
   end if;
 
-  -- 预约窗口上限：只能约到下周（date_trunc('week') 取本周周一，+14 天 = 下下周一）
-  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+  -- 预约窗口上限：北京时间今天 + 5 天（含），每天零点后移一天
+  v_limit := (now() at time zone 'Asia/Shanghai')::date + 6;
   if p_day >= v_limit then
     return 'TOO_FAR';
   end if;
@@ -367,7 +367,7 @@ declare
   v_hour      int;
   v_conflicts text[] := '{}';
   v_ok        int := 0;
-  v_limit     date;   -- 第一个不可预约的日期：下下周一
+  v_limit     date;   -- 第一个不可预约的日期：北京时间今天 + 6 天
 begin
   select user_id into v_uid
     from public.prep_sessions
@@ -392,8 +392,8 @@ begin
     return json_build_object('code', 'TOO_MANY');
   end if;
 
-  -- 预约窗口上限：只能约到下周（date_trunc('week') 取本周周一，+14 天 = 下下周一）
-  v_limit := (date_trunc('week', now() at time zone 'Asia/Shanghai') + interval '14 days')::date;
+  -- 预约窗口上限：北京时间今天 + 5 天（含），每天零点后移一天
+  v_limit := (now() at time zone 'Asia/Shanghai')::date + 6;
 
   -- 先全部检查：任何一个不可用 → 整体拒绝，一个都不插
   for v_item in select * from jsonb_array_elements(p_hours) loop
